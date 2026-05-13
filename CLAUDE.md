@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Guidance for Claude Code when working in this repository. For architecture and decisions see [`docs/DESIGN.md`](docs/DESIGN.md).
+Guidance for Claude Code when working in this repository. For architecture and decisions see [`docs/DESIGN.md`](docs/DESIGN.md). For hosting, infrastructure, and server configuration see [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
 
 ## Project
 
@@ -54,7 +54,7 @@ make build
 
 ## AT Proto
 
-Session records are published to AT Proto only when the user explicitly confirms them. Never write to the user's AT Proto repo without an explicit user action. The Lexicon for session records lives in `docs/DESIGN.md`.
+Session records are published to AT Proto only when the user explicitly confirms them. Never write to the user's AT Proto repo without an explicit user action.
 
 ## IGDB
 

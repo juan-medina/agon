@@ -2,7 +2,7 @@
 
 This is Agōn — an open social network for gaming sessions built on AT Proto. Three components in one monorepo: a Go API server (`cmd/api`, `internal/`), a Go tray agent (`cmd/agent`), and a React frontend (`web/`).
 
-See `docs/DESIGN.md` for architecture decisions. See `CLAUDE.md` for coding conventions.
+See `docs/DESIGN.md` for architecture decisions. See `docs/DEPLOYMENT.md` for hosting and infrastructure decisions. See `CLAUDE.md` for coding conventions.
 
 ## Key rules
 

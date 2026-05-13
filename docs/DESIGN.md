@@ -55,10 +55,6 @@ Heartbeats serve two purposes: accurate duration if the machine crashes, and liv
 
 IGDB (owned by Twitch) is free for non-commercial use and is the most comprehensive game database available. We use it for game metadata, cover art, genres, and similar game relationships. The Twitch client secret lives server-side only — the frontend never touches it. Responses are cached in-process with a TTL to stay within rate limits.
 
-## Hosting
-
-Fly.io for the Go binary. Supabase for Postgres. Cloudflare for DNS and proxying. All have free tiers sufficient for a side project at low traffic.
-
 ## Testing
 
 Tests are written from the start. Go packages have unit tests alongside the code they test. Integration tests covering the API live in a dedicated test package. The React frontend uses Vitest. We do not aim for coverage targets — we test behaviour that would be painful to debug manually.
