@@ -5,77 +5,83 @@ Operational decisions and the reasoning behind them. Architecture decisions live
 ## Topology
 
 ```
-Internet
+Cloudflare Pages          React SPA — static assets, global CDN, free
     │
-    Cloudflare          DNS, SSL termination, DDoS absorption
+    │  API calls (api.agon.gg)
+    ▼
+Cloudflare proxy          DNS, SSL termination, DDoS absorption
     │
-    VPS                 Single Go binary (API + embedded frontend)
+    ▼
+Hetzner VPS               Single Go binary — API only
     │
-    Supabase            Managed Postgres
-    │
-    Bluesky PDS         AT Proto identity and session records (external)
+    ▼
+Supabase                  Managed Postgres
+
+Bluesky PDS               AT Proto identity and confirmed session records (external)
 ```
 
-One VPS, one process, one database. Nothing else to operate.
+## Frontend — Cloudflare Pages
 
-## Why Cloudflare in front
+The React SPA is deployed directly from Git. Cloudflare Pages rebuilds and deploys on every push to `main`. Pull requests get preview URLs automatically. Static assets are served from Cloudflare's edge globally at no bandwidth cost.
 
-Cloudflare's free tier handles DNS, SSL certificates, and absorbs most inbound abuse before it reaches the VPS. This matters because the most common way a small server gets an unexpected bill is inbound traffic from a DDoS or scan. Cloudflare eliminates most of that risk at no cost and without changing the application at all.
+No server is involved in serving the frontend. The SPA communicates with the API at `api.agon.gg`.
 
-## Why a fixed-price VPS over a PaaS
+## API — Hetzner VPS
 
-Pay-as-you-go platforms (Fly.io, Render, Railway) bill per unit of consumption with no hard ceiling. A compromised server or sustained attack can generate a large bill before you notice. A fixed-price VPS has a known monthly cost that cannot increase regardless of what traffic hits it — when the included bandwidth is exceeded the connection is throttled, not billed.
+A fixed-price VPS with a known monthly cost that cannot increase regardless of traffic. When included bandwidth is exceeded Hetzner charges €1/TB overage rather than cutting service — set a traffic alert in the Hetzner dashboard to warn before the included allowance is reached. With Cloudflare absorbing inbound traffic, hitting the outbound limit in normal operation is very unlikely.
 
-For a side project with no revenue this is the only acceptable billing model.
+A CX22 instance (2 vCPU, 4 GB RAM, 20 TB included traffic) at roughly €4-6/month is more than sufficient for a Go binary at side-project scale.
 
-## Recommended provider
+Pay-as-you-go platforms were ruled out because they have no hard billing ceiling. A compromised server or sustained attack can generate a large bill before you notice. Fixed-price VPS means the worst case is a slow server, not an unexpected invoice.
 
-Hetzner Cloud. A CX22 instance (2 vCPU, 4 GB RAM, 20 TB included traffic) costs roughly €4/month. Inbound traffic is free. Outbound overage is charged at €1/TB rather than throttled — set a traffic alert in the Hetzner dashboard to warn before the included allowance is exceeded. With Cloudflare absorbing inbound traffic, hitting the outbound limit in normal operation is very unlikely.
+## Tray agent — distributed via Velopack
 
-This is a recommendation, not a requirement. Any fixed-price VPS with at least 1 GB RAM and a reputable network will work.
+The agent is distributed as a Windows installer built with Velopack. Velopack handles installation, the `agon://` URL scheme registration, auto-updates, and clean uninstall. The agent checks for updates on startup and applies them silently in the background.
 
-## Managed database
+Update packages are hosted on GitHub Releases. No update server to operate.
 
-Supabase for Postgres. The free tier is sufficient for early traffic and pauses the database rather than charging overages when limits are exceeded. The connection string is injected as an environment variable — the application has no knowledge of the provider.
+## Database — Supabase
+
+Supabase hosts Postgres. The free tier is sufficient for early traffic. The application has no knowledge of the provider — it connects via a standard Postgres connection string injected as an environment variable. Supabase's `pg_cron` extension runs the eviction job for expired unconfirmed sessions nightly:
+
+```sql
+DELETE FROM sessions
+WHERE status IN ('active', 'ended')
+AND created_at < NOW() - INTERVAL '7 days';
+```
 
 ## Server hardening
-
-A small publicly reachable server needs a minimum baseline before anything is deployed:
 
 - SSH key authentication only — password login disabled
 - Fail2ban blocking repeated failed SSH attempts
 - Automatic unattended security updates enabled
 - Go binary runs as a dedicated non-root user
-- Only ports 80 and 443 open to the public — port 22 restricted to known IPs where possible
+- Only ports 80 and 443 open publicly — port 22 restricted to known IPs where possible
 - Cloudflare proxy enabled on the DNS record so the VPS IP is not exposed directly
-
-The attack surface is intentionally minimal: one binary, one open port, no other services.
 
 ## Environment variables
 
 Secrets are never committed. The binary reads configuration from environment variables at startup:
 
 ```
-DATABASE_URL        Supabase Postgres connection string
-IGDB_CLIENT_ID      Twitch application client ID
-IGDB_CLIENT_SECRET  Twitch application client secret
-ATPROTO_PDS_URL     Bluesky PDS endpoint
+DATABASE_URL          Supabase Postgres connection string
+IGDB_CLIENT_ID        Twitch application client ID
+IGDB_CLIENT_SECRET    Twitch application client secret
+ATPROTO_PDS_URL       Bluesky PDS endpoint
 ```
 
-On the VPS these are set in a systemd service unit, not in a shell profile or .env file.
+On the VPS these are set in the systemd service unit file, not in a shell profile or `.env` file.
 
 ## Process management
 
-The Go binary runs as a systemd service. Systemd handles startup on boot, restarts on crash, and log collection via journald. No Docker, no container runtime — the binary runs directly on the host.
+The Go binary runs as a systemd service. Systemd handles startup on boot, restarts on crash, and log collection via journald. No Docker, no container runtime.
 
 ## Deployment
 
-Deployments are a binary copy followed by a service restart:
-
 ```sh
-go build -o bin/api ./cmd/api
+go build -o bin/api ./api
 scp bin/api user@host:/opt/agon/api
 ssh user@host "systemctl restart agon"
 ```
 
-CI can automate this once the project has enough contributors to justify it. Until then, manual deploy is fine.
+CI can automate this once the project has enough contributors to justify it.
