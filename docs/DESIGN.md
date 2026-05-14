@@ -18,31 +18,55 @@ Three deployable things:
 
 **Web frontend** — a React SPA deployed to Cloudflare Pages. Handles session confirmation, the social feed, game search, personal stats, and exclusion management.
 
+## Tech stack
+
+Every choice below was made deliberately. The reason is part of the decision.
+
+### API — Go
+
+Go is used for the API server. `net/http` from the standard library handles routing — no web framework. A single statically compiled binary with no runtime dependency is the deployment artifact. Idle memory is around 15 MB, which comfortably fits the smallest available VPS tier.
+
+Go was chosen over Kotlin/JVM (too much memory at idle for a cheap VPS), Python (slower, two languages needed anyway once the agent language is decided), Node/TypeScript (same problem), and PHP (no meaningful advantage). C# was considered but Go produces a self-contained binary with no runtime required on the server, which simplifies deployment and keeps the VPS footprint minimal.
+
+### Tray agent — C#, .NET 9, Velopack
+
+C# is used for the Windows tray agent. .NET 9 provides first-class Windows API access for process enumeration, system tray integration, OS notifications, and custom URL scheme registration. Velopack handles installation, auto-updates via GitHub Releases, and clean uninstall — all things a proper Windows desktop application needs.
+
+Go was considered and ruled out: it produces a smaller binary but the Windows desktop integration surface (tray, notifications, installer, URL scheme) requires significantly more work in Go than in C#. The developer has deep C# experience from other projects, which matters for a component that needs to work reliably on end-user machines.
+
+The agent has no UI of its own. Any configuration or session review opens the web app in the default browser.
+
+### Web frontend — React, TypeScript, Vite, pnpm
+
+React is used for the web frontend. TypeScript strict mode throughout, no `any`. Vite is the build tool. pnpm is the package manager. Node 22 is pinned via `.node-version` for fnm.
+
+React was chosen over SvelteKit and other options primarily for contributor accessibility — it has the largest frontend developer community by a significant margin, the most tutorials, and the most available help. SvelteKit would be faster to write but React wins on the ability to attract contributors to an open source project. Next.js was ruled out — server-side rendering adds complexity that a logged-in tool with no SEO requirements does not need. A plain SPA is sufficient.
+
+The frontend is deployed to Cloudflare Pages. Static assets are served from Cloudflare's edge globally, free of charge, with automatic deploys on every push to `main` and preview URLs per pull request. The Go binary serves only API routes — it has no responsibility for static files.
+
+### Database — Supabase, Postgres
+
+Supabase provides managed Postgres. The `pg_cron` extension runs the nightly eviction job for expired unconfirmed sessions. The application connects via a standard Postgres connection string and has no knowledge of the provider.
+
+### Authentication — Bluesky OAuth
+
+Bluesky OAuth is the only authentication method. Agōn is an AT Proto application — a Bluesky account and AT Proto DID are required regardless of how a user logs in, so adding Google, GitHub, or any other provider would only delay an inevitable linking step. A Bluesky account is a hard requirement, stated clearly in the README.
+
+### AT Proto / Bluesky PDS
+
+Bluesky's hosted PDS is used rather than a self-hosted one. User identity and confirmed session record storage are Bluesky's infrastructure cost, not ours.
+
 ## Why AT Proto
 
 Sessions are the user's data, not ours. AT Proto gives users a portable identity and portable records — if Agōn shuts down, the data does not disappear. It also reduces our cold start problem: users can bootstrap their social graph from existing Bluesky follows rather than finding each other from scratch.
 
-We use Bluesky's hosted PDS rather than running our own. That means user identity and session record storage are Bluesky's infrastructure cost, not ours.
-
-## Authentication
-
-Bluesky OAuth is the only login method. Agōn is an AT Proto application — every user needs an AT Proto DID regardless of how they authenticate, so adding a separate SSO provider would only delay the inevitable linking step. A Bluesky account is a hard requirement and is stated clearly in the README.
-
 ## Why the frontend and backend are separate deployments
 
-The React SPA is static — HTML, CSS, and JavaScript with no server-side rendering. Cloudflare Pages serves it from the edge for free, with automatic deploys on every Git push and preview URLs per pull request. There is no reason to serve static files from the Go binary or pay for a server to do what a CDN does better for free.
-
-The Go binary is responsible only for API routes. It is simpler and smaller as a result.
+The React SPA is static — HTML, CSS, and JavaScript with no server-side rendering. Cloudflare Pages serves it from the edge for free with automatic deploys. There is no reason to serve static files from the Go binary or pay for a server to do what a CDN does better for free. The Go binary is responsible only for API routes, which makes it simpler.
 
 ## Why one Go binary for the API
 
 The scope does not justify a gateway, a reverse proxy, or multiple services. Go's `net/http` handles everything needed. One binary, one process, one thing to monitor and deploy.
-
-## Why C# for the tray agent
-
-The tray agent is a Windows desktop application that needs OS-level integration: process enumeration, system tray, OS notifications, custom URL scheme registration, and a proper installer with auto-update. C# and .NET have first-class support for all of these on Windows. Velopack handles installation, updates, and uninstall cleanly.
-
-Go would produce a smaller binary but would require significantly more work for the same Windows integration surface. The right tool for a Windows desktop application is a Windows-native stack.
 
 ## Game detection
 
@@ -50,7 +74,7 @@ The tray agent detects games by watching for new processes that load a graphics 
 
 When a matching process appears, the agent captures the window title and sends it to the API for fuzzy matching against IGDB. The match is a suggestion, not a fact — the user confirms or corrects it.
 
-We do not maintain an executable-to-game database. The window title approach works without one and is transparent to users and contributors.
+We do not maintain an executable-to-game database. The window title approach works without one, is transparent to users and contributors, and covers games from any store or no store.
 
 ## Session lifecycle
 
@@ -71,9 +95,9 @@ When a session is confirmed, the AT Proto record contains all game metadata — 
 
 ## IGDB
 
-IGDB (owned by Twitch) is free for non-commercial use and is the most comprehensive game database available. We use it for game metadata, cover art, genres, and similar game relationships. The Twitch client secret lives server-side only — the frontend never touches it.
+IGDB (owned by Twitch) is free for non-commercial use and is the most comprehensive game database available. We use it for game metadata, cover art, genres, and similar game relationships. The Twitch client secret lives server-side only — the frontend and the agent never touch it.
 
-IGDB responses are cached in Postgres with a TTL. This cache is server-side infrastructure to stay within IGDB rate limits during detection and confirmation. It is not user data — clients read game metadata from the denormalised AT Proto records instead.
+IGDB responses are cached in Postgres with a TTL. This cache is server-side infrastructure to stay within IGDB rate limits during detection and confirmation. Clients read game metadata from the denormalised AT Proto records instead.
 
 ## Exclusion list
 
@@ -91,7 +115,7 @@ AT Proto      confirmed sessions — fully denormalised, permanent, user-owned
 
 Postgres      unconfirmed sessions — evicted after 7 days
               exe exclusions — per user DID, permanent until removed
-              game cache — server side IGDB responses with TTL
+              game cache — server-side IGDB responses with TTL
 
 localStorage  UI preferences only
 ```
