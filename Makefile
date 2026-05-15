@@ -1,10 +1,10 @@
 .PHONY: api agent web test lint build setup db-init db-start db-stop
 
 api:
-	go run ./cmd/api
+	go run ./api/cmd/api
 
 agent:
-	go run ./cmd/agent
+	cd agent && dotnet run
 
 web:
 	cd web && pnpm dev
@@ -18,8 +18,8 @@ lint:
 	cd web && pnpm lint
 
 build:
-	go build -o bin/api ./cmd/api
-	go build -o bin/agent ./cmd/agent
+	go build -o bin/api ./api/cmd/api
+	cd agent && dotnet build -c Release
 	cd web && pnpm build
 
 setup:
