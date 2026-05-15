@@ -1,0 +1,12 @@
+// SPDX-FileCopyrightText: 2026 Juan Medina
+// SPDX-License-Identifier: MIT
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import "./index.css";
+import App from "./App";
+
+createRoot(document.getElementById("root")!).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+);

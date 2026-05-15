@@ -27,22 +27,21 @@ Initial monorepo structure, tooling config, and documentation baseline.
 
 ## In Progress
 
-Nothing currently in progress.
+### 1 — Frontend shell
+Layout, routing, and design system foundations. No data, no API calls — structure and navigation only.
+
+- [x] Vite + React 18 + TypeScript project in `web/` (`pnpm`, Node 22)
+- [x] React Router v7 — nested layout route with `createBrowserRouter`
+- [x] Shell layout: left sidebar with nav links, top bar with theme toggle and avatar placeholder
+- [x] Design tokens: Tailwind v4 CSS variables, violet accent, dark mode default with light mode toggle
+- [x] Placeholder pages: feed, inbox, profile, game search, settings
+- [x] Vitest + React Testing Library wired up — 2 tests passing
 
 ---
 
 ## Planned
 
 Work is sequenced intentionally. Each phase produces something usable before the next begins.
-
-### 1 — Frontend shell
-Layout, routing, and design system foundations. No data, no API calls — structure and navigation only.
-
-- Page routing (React Router or file-based)
-- Shell layout: nav, sidebar, main content area
-- Design tokens and global styles
-- Placeholder pages: feed, inbox, profile, game search, settings
-- Vitest + React Testing Library set up and passing
 
 ### 2 — API contracts
 HTTP API shapes defined and documented before any implementation is written. The frontend mock layer and the Go implementation will both be built against these contracts.
