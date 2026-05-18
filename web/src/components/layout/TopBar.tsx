@@ -3,8 +3,9 @@
 import { Bell, Moon, Sun, User } from "lucide-react";
 import { NavLink } from "react-router";
 import { useTheme } from "@/hooks/useTheme";
+import { MOCK_ECHOES } from "@/lib/mock";
 
-const MOCK_UNREAD = false;
+const MOCK_UNREAD = MOCK_ECHOES.some((e) => !e.read);
 
 export default function TopBar() {
   const { theme, toggleTheme } = useTheme();

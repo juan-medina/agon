@@ -194,6 +194,83 @@ export const MOCK_OTHERS_ON_JOURNEY: JourneyPlayer[] = [
   },
 ];
 
+export type EchoKind = "comment" | "follower";
+
+export type MockEcho = {
+  id: string;
+  kind: EchoKind;
+  player: Player;
+  timestamp: string;
+  read: boolean;
+  sessionId?: string;
+  game?: string;
+  commentPreview?: string;
+};
+
+export const MOCK_ECHOES: MockEcho[] = [
+  {
+    id: "e1",
+    kind: "comment",
+    player: PLAYERS[1],
+    timestamp: "18m ago",
+    read: false,
+    sessionId: "s1",
+    game: "Elden Ring",
+    commentPreview: "40 attempts is wild, respect. I gave up at 20.",
+  },
+  {
+    id: "e2",
+    kind: "follower",
+    player: { id: "o1", name: "Jordan Park", handle: "jordanp.bsky.social", color: "#0284c7" },
+    timestamp: "45m ago",
+    read: false,
+  },
+  {
+    id: "e3",
+    kind: "comment",
+    player: PLAYERS[2],
+    timestamp: "1h ago",
+    read: false,
+    sessionId: "s1",
+    game: "Elden Ring",
+    commentPreview: "Which build were you running? I keep dying in phase 2.",
+  },
+  {
+    id: "e4",
+    kind: "follower",
+    player: { id: "o2", name: "Priya Nair", handle: "priyanair.bsky.social", color: "#7c3aed" },
+    timestamp: "3h ago",
+    read: true,
+  },
+  {
+    id: "e5",
+    kind: "comment",
+    player: PLAYERS[3],
+    timestamp: "5h ago",
+    read: true,
+    sessionId: "s5",
+    game: "Hades II",
+    commentPreview: "New build is insane — Aspect of Melinoë with the moon staff.",
+  },
+  {
+    id: "e6",
+    kind: "follower",
+    player: { id: "o3", name: "Luca Rossi", handle: "lucarossi.bsky.social", color: "#059669" },
+    timestamp: "yesterday",
+    read: true,
+  },
+  {
+    id: "e7",
+    kind: "comment",
+    player: PLAYERS[1],
+    timestamp: "2d ago",
+    read: true,
+    sessionId: "s7",
+    game: "Elden Ring",
+    commentPreview: "Started a fresh Arcane build. Let's see how this goes.",
+  },
+];
+
 export function initials(name: string): string {
   return name
     .split(" ")
