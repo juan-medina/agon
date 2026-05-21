@@ -80,8 +80,10 @@ function CommentRow({ comment }: { comment: MockComment }) {
   return (
     <div className="py-3">
       <div className="mb-1 flex items-center gap-2">
-        <PlayerAvatar player={comment.player} size="sm" />
-        <span className="text-sm font-semibold">{comment.player.name}</span>
+        <Link to={`/player/${comment.player.handle}`} className="flex items-center gap-2">
+          <PlayerAvatar player={comment.player} size="sm" />
+          <span className="text-sm font-semibold">{comment.player.name}</span>
+        </Link>
         <span className="ml-auto text-xs text-muted-foreground">{comment.timestamp}</span>
       </div>
       <p className="pl-8 text-sm text-foreground/80">{comment.text}</p>
