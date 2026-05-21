@@ -259,6 +259,8 @@ export type MockPendingSession = {
   genres: string[];
   duration: string;
   timestamp: string;
+  exeName?: string;
+  windowTitle?: string;
 };
 
 export type MockGameResult = {
@@ -293,6 +295,8 @@ export const MOCK_PENDING_SESSIONS: MockPendingSession[] = [
     genres: ["RPG", "Open World", "Sci-fi"],
     duration: "1h 52m",
     timestamp: "just now",
+    exeName: "cyberpunk2077.exe",
+    windowTitle: "Cyberpunk 2077",
   },
   {
     id: "ps2",
@@ -302,6 +306,19 @@ export const MOCK_PENDING_SESSIONS: MockPendingSession[] = [
     genres: ["Roguelike", "Action", "Platformer"],
     duration: "1h 18m",
     timestamp: "2h ago",
+    exeName: "deadcells.exe",
+    windowTitle: "Dead Cells",
+  },
+  {
+    id: "ps3",
+    game: "",
+    coverColor: "#1a1a1a",
+    coverAccent: "#6b7280",
+    genres: [],
+    duration: "34m",
+    timestamp: "5h ago",
+    exeName: "svb.exe",
+    windowTitle: "SVB!",
   },
 ];
 

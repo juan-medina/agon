@@ -312,22 +312,22 @@ function PendingCard({
   session: MockPendingSession;
   onDismiss: () => void;
 }) {
-  const [confirming, setConfirming] = useState(false);
+  const [cardState, setCardState] = useState<"collapsed" | "confirming" | "excluding">("collapsed");
   const [game, setGame] = useState<MockGameResult | null>(sessionToGameResult(session));
   const [log, setLog] = useState("");
 
   function openConfirm(searchMode = false) {
     setGame(searchMode ? null : sessionToGameResult(session));
-    setConfirming(true);
+    setCardState("confirming");
   }
 
   function cancelConfirm() {
-    setConfirming(false);
+    setCardState("collapsed");
     setGame(sessionToGameResult(session));
     setLog("");
   }
 
-  if (confirming) {
+  if (cardState === "confirming") {
     return (
       <div className="rounded-lg border border-primary/30 bg-card p-4">
         <div className="mb-3">
@@ -365,6 +365,31 @@ function PendingCard({
     );
   }
 
+  if (cardState === "excluding") {
+    return (
+      <div className="rounded-lg border border-border bg-card p-4">
+        <p className="text-sm font-medium">Exclude {session.exeName} from detection?</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Future sessions from this executable will be ignored.
+        </p>
+        <div className="mt-4 flex items-center justify-end gap-2">
+          <button
+            onClick={() => setCardState("collapsed")}
+            className="rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onDismiss}
+            className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          >
+            Exclude
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="rounded-lg border border-border bg-card p-4">
       <div className="flex gap-4">
@@ -376,24 +401,37 @@ function PendingCard({
         />
         <div className="min-w-0 flex-1">
           <div className="mb-1 flex flex-wrap items-baseline gap-x-2 gap-y-1">
-            <span className="font-bold">{session.game}</span>
+            {session.game ? (
+              <span className="font-bold">{session.game}</span>
+            ) : (
+              <span className="italic text-muted-foreground">Unknown Game</span>
+            )}
             <button
               onClick={() => openConfirm(true)}
               className="text-xs text-primary underline-offset-2 hover:underline"
             >
               Change
             </button>
-            <div className="flex flex-wrap gap-1">
-              {session.genres.map((g) => (
-                <span
-                  key={g}
-                  className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground"
-                >
-                  {g}
-                </span>
-              ))}
-            </div>
+            {session.game && (
+              <div className="flex flex-wrap gap-1">
+                {session.genres.map((g) => (
+                  <span
+                    key={g}
+                    className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground"
+                  >
+                    {g}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
+          {(session.exeName || session.windowTitle) && (
+            <div className="mb-1 text-xs text-muted-foreground">
+              {session.exeName}
+              {session.exeName && session.windowTitle && " · "}
+              {session.windowTitle && `"${session.windowTitle}"`}
+            </div>
+          )}
           <div className="flex items-center gap-1 text-xs text-muted-foreground">
             <Clock size={12} />
             <span>{session.duration}</span>
@@ -403,6 +441,14 @@ function PendingCard({
         </div>
       </div>
       <div className="mt-3 flex items-center justify-end gap-2 border-t border-border pt-3">
+        {session.exeName && (
+          <button
+            onClick={() => setCardState("excluding")}
+            className="rounded-md px-2 py-1.5 text-sm text-muted-foreground/70 transition-colors hover:text-muted-foreground"
+          >
+            Never detect this
+          </button>
+        )}
         <button
           onClick={onDismiss}
           className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"

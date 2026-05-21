@@ -83,6 +83,59 @@ describe("Journeys — pending actions", () => {
     }
     expect(screen.queryByText("Pending")).not.toBeInTheDocument();
   });
+
+  it("Never detect this button appears only when exeName is present", async () => {
+    renderJourneys();
+    const sessionsWithExe = MOCK_PENDING_SESSIONS.filter((s) => s.exeName);
+    expect(screen.getAllByRole("button", { name: "Never detect this" })).toHaveLength(
+      sessionsWithExe.length,
+    );
+  });
+
+  it("clicking Never detect this shows inline confirmation", async () => {
+    const user = userEvent.setup();
+    renderJourneys();
+    const [firstNeverDetect] = screen.getAllByRole("button", { name: "Never detect this" });
+    await user.click(firstNeverDetect);
+    expect(screen.getByText("Exclude cyberpunk2077.exe from detection?")).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Discard" })).toHaveLength(
+      MOCK_PENDING_SESSIONS.length - 1,
+    );
+    expect(screen.getAllByRole("button", { name: "Confirm" })).toHaveLength(
+      MOCK_PENDING_SESSIONS.length - 1,
+    );
+  });
+
+  it("canceling the exclusion confirmation restores the card", async () => {
+    const user = userEvent.setup();
+    renderJourneys();
+    const [firstNeverDetect] = screen.getAllByRole("button", { name: "Never detect this" });
+    await user.click(firstNeverDetect);
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.getAllByRole("button", { name: "Discard" })).toHaveLength(
+      MOCK_PENDING_SESSIONS.length,
+    );
+    expect(screen.getAllByRole("button", { name: "Confirm" })).toHaveLength(
+      MOCK_PENDING_SESSIONS.length,
+    );
+  });
+
+  it("confirming exclusion removes the card", async () => {
+    const user = userEvent.setup();
+    renderJourneys();
+    const [firstNeverDetect] = screen.getAllByRole("button", { name: "Never detect this" });
+    await user.click(firstNeverDetect);
+    await user.click(screen.getByRole("button", { name: "Exclude" }));
+    expect(screen.queryByText("Cyberpunk 2077")).not.toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Discard" })).toHaveLength(
+      MOCK_PENDING_SESSIONS.length - 1,
+    );
+  });
+
+  it("unknown game session shows Unknown Game label", async () => {
+    renderJourneys();
+    expect(screen.getByText("Unknown Game")).toBeInTheDocument();
+  });
 });
 
 describe("Journeys — client hint", () => {
