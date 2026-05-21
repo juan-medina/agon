@@ -53,12 +53,12 @@ Full UI and user flows built with inline mock data. No backend required at this 
 
 **Remaining**
 - [ ] Journeys page — your own sessions: confirmed history and pending confirmation inbox
-- [ ] Session confirmation flow — review game match, duration, write log, confirm or discard
+- [ ] Session confirmation flow — review game match, duration, write log, confirm or discard; detection metadata (exe, window title) shown inline; unknown game state; Never detect this action with inline confirmation
 - [ ] Players page — who you follow, who follows you
 - [ ] Hero page — your profile, confirmed session history, stats
 - [ ] Echoes page — notification list (new comment, new follower)
 - [ ] Game search — IGDB-backed search UI (mocked)
-- [ ] Exclusion management — add/remove executable exclusions
+- [ ] Exclusion management — Settings view to list and remove existing exclusions (adding exclusions happens from the pending card, not here)
 - [ ] Vitest tests for all flows
 
 ---

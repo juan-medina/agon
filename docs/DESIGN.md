@@ -95,6 +95,10 @@ Sessions only publish to AT Proto on confirmation. Unconfirmed sessions are priv
 
 Heartbeats serve two purposes: accurate duration if the machine crashes, and liveness detection. Sessions with no heartbeat for 15 minutes are auto-closed.
 
+When a session reaches ended, the pending card shown to the user includes the raw detection metadata — the executable name and window title the agent captured — as secondary information. This gives the user enough context to judge whether the match is correct without opening anything else. If no IGDB match was found, the card shows "Unknown Game" and prompts the user to search. Three actions are available on the collapsed card: Confirm (proceeds to the log form), Discard (removes the session permanently), and Never detect this (available only when an executable is associated — adds the exe to the exclusion list and dismisses the card). The exclusion action shows an inline confirmation before committing.
+
+When the user corrects a game match during confirmation, the confirmed exe → IGDB ID pairing is stored in exe_game_hints. On the next session from the same executable, the server checks this table before attempting fuzzy match, so the suggestion is correct immediately.
+
 ## AT Proto records are fully denormalised
 
 When a session is confirmed, the AT Proto record contains all game metadata — title, cover art URL, genres, IGDB ID — baked in at publish time. A friend's feed never needs to query the API or IGDB to render a session card. The record is self-contained and portable.
@@ -210,6 +214,8 @@ IGDB responses are cached in Postgres with a TTL. This cache is server-side infr
 
 Users can mark specific executables as non-games so the agent ignores them. Exclusions are stored in Postgres per user DID. The agent fetches the full exclusion list from the API on startup and again each time a new process is detected, before deciding whether to create a session. Game launches are infrequent events so this is negligible traffic. No persistent connection, no polling, no push mechanism needed — exclusions are only relevant at the moment of detection.
 
+The primary way to add an exclusion is directly from a pending session card — a "Never detect this" action is available inline whenever a session has an associated executable. Confirming it adds the exe to the exclusion list and dismisses the card without requiring navigation to Settings. Settings provides a management view to see and remove existing exclusions, but it is not the entry point for adding them.
+
 ## Custom URL scheme
 
 The agent registers `agon://` as a custom URL scheme on install via Velopack. Its sole purpose is the OAuth callback: after the user completes Bluesky OAuth in the browser, the web app redirects to `agon://auth?token=...`, the OS routes this to the running agent, and the agent stores the token. This is the standard pattern for desktop OAuth flows.
@@ -223,6 +229,9 @@ AT Proto      confirmed sessions — fully denormalised, permanent, user-owned
 
 Postgres      unconfirmed sessions — evicted after 7 days
               exe exclusions — per user DID, permanent until removed
+              exe_game_hints        — per user DID: exe_name → igdb_id, built automatically
+                                      from confirmed corrections, used to skip fuzzy match
+                                      on repeat detections
               game cache — server-side IGDB responses with TTL
               game_sessions_index — igdb_id / user_did / session_uri / played_at
                                     written on confirm, used for "on this journey" queries
