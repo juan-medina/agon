@@ -3,7 +3,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
-import { MY_PLAYER, MY_PLAYER_ID, SESSIONS } from "@/lib/mock";
+import { MY_FOLLOWERS, MY_FOLLOWING, MY_PLAYER, MY_PLAYER_ID, SESSIONS } from "@/lib/mock";
 import Hero from "./Hero";
 
 const MY_SESSIONS = SESSIONS.filter((s) => s.player.id === MY_PLAYER_ID);
@@ -113,6 +113,32 @@ describe("Hero — bio", () => {
     await user.click(screen.getByRole("button", { name: "Cancel" }));
     expect(screen.getByText(MY_PLAYER.bio!)).toBeInTheDocument();
     expect(screen.queryByRole("textbox", { name: "Bio" })).not.toBeInTheDocument();
+  });
+});
+
+describe("Hero — follow lists", () => {
+  it("clicking Followers stat opens the modal listing followers", async () => {
+    const user = userEvent.setup();
+    renderHero();
+    await user.click(screen.getByRole("button", { name: /Followers/ }));
+    expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
+    expect(screen.getByText(MY_FOLLOWERS[0].name)).toBeInTheDocument();
+  });
+
+  it("clicking Following stat opens the modal listing following", async () => {
+    const user = userEvent.setup();
+    renderHero();
+    await user.click(screen.getByRole("button", { name: /Following/ }));
+    expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
+    expect(screen.getByText(MY_FOLLOWING[0].name)).toBeInTheDocument();
+  });
+
+  it("closing the follow list modal hides it", async () => {
+    const user = userEvent.setup();
+    renderHero();
+    await user.click(screen.getByRole("button", { name: /Followers/ }));
+    await user.click(screen.getByRole("button", { name: "Close" }));
+    expect(screen.queryByRole("button", { name: "Close" })).not.toBeInTheDocument();
   });
 });
 

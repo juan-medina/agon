@@ -3,7 +3,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router";
-import { SESSIONS } from "@/lib/mock";
+import { MOCK_OTHERS_ON_JOURNEY, SESSIONS } from "@/lib/mock";
 import JourneyDetail from "./JourneyDetail";
 
 function renderJourney(id: string) {
@@ -57,5 +57,42 @@ describe("JourneyDetail", () => {
     renderJourney("s1");
     await user.type(screen.getByPlaceholderText("Add a comment…"), "Great session!");
     expect(screen.getByRole("button", { name: "Post" })).toBeEnabled();
+  });
+
+  it("clicking 'See who liked this' opens the liked-by modal", async () => {
+    const user = userEvent.setup();
+    renderJourney("s1");
+    await user.click(screen.getByRole("button", { name: "See who liked this" }));
+    expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
+  });
+
+  it("shows Follow only for Others players, not Friends on this journey", () => {
+    renderJourney("s1"); // s1 is my session — no owner Follow button
+    expect(screen.getAllByRole("button", { name: "Follow" })).toHaveLength(
+      MOCK_OTHERS_ON_JOURNEY.length,
+    );
+  });
+
+  it("clicking Follow on an Others player toggles to Following", async () => {
+    const user = userEvent.setup();
+    renderJourney("s1");
+    const [firstFollow] = screen.getAllByRole("button", { name: "Follow" });
+    await user.click(firstFollow);
+    expect(screen.getAllByRole("button", { name: "Follow" })).toHaveLength(
+      MOCK_OTHERS_ON_JOURNEY.length - 1,
+    );
+  });
+
+  it("shows Unfollow for an already-followed session owner", () => {
+    // s2 belongs to Alex Torres who is in MOCK_FRIENDS_ON_JOURNEY
+    renderJourney("s2");
+    expect(screen.getByRole("button", { name: "Unfollow" })).toBeInTheDocument();
+  });
+
+  it("clicking Unfollow for the owner removes the Unfollow button", async () => {
+    const user = userEvent.setup();
+    renderJourney("s2");
+    await user.click(screen.getByRole("button", { name: "Unfollow" }));
+    expect(screen.queryByRole("button", { name: "Unfollow" })).not.toBeInTheDocument();
   });
 });

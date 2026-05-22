@@ -68,4 +68,18 @@ describe("PlayerProfile", () => {
     expect(screen.queryByRole("button", { name: "Follow" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Unfollow" })).not.toBeInTheDocument();
   });
+
+  it("clicking Followers stat opens the follow list modal", async () => {
+    const user = userEvent.setup();
+    renderProfile(PLAYERS[1].handle);
+    await user.click(screen.getByRole("button", { name: /Followers/ }));
+    expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
+  });
+
+  it("clicking Following stat opens the follow list modal", async () => {
+    const user = userEvent.setup();
+    renderProfile(PLAYERS[1].handle);
+    await user.click(screen.getByRole("button", { name: /Following/ }));
+    expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
+  });
 });

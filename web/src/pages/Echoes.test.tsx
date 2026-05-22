@@ -45,11 +45,12 @@ describe("Echoes", () => {
     expect(link).toHaveAttribute("href", `/journey/${firstComment.sessionId}`);
   });
 
-  it("follower echo links to /players", () => {
+  it("follower echo links to the follower's player profile", () => {
     renderEchoes();
+    const firstFollower = MOCK_ECHOES.find((e) => e.kind === "follower")!;
     const link = screen
       .getAllByRole("link")
       .find((el) => el.textContent?.includes("started following you"))!;
-    expect(link).toHaveAttribute("href", "/players");
+    expect(link).toHaveAttribute("href", `/player/${firstFollower.player.handle}`);
   });
 });
