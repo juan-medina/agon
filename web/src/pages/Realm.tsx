@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { Clock, Heart } from "lucide-react";
-import { type MockSession, SESSIONS, avatarSrc, playerHref } from "@/lib/mock";
+import { type MockSession, SESSIONS, avatarSrc, gameCoverSrc, playerHref } from "@/lib/mock";
 
 type SessionCardProps = { session: MockSession };
 
@@ -26,12 +26,10 @@ function SessionCard({ session }: SessionCardProps) {
         className="relative h-16 w-16 shrink-0 overflow-hidden rounded-md"
         style={{ backgroundColor: session.coverColor }}
       >
-        <span
-          className="absolute inset-0 flex items-center justify-center text-2xl font-bold"
-          style={{ color: session.coverAccent }}
-        >
-          {session.game[0]}
-        </span>
+        {gameCoverSrc(session.game)
+          ? <img src={gameCoverSrc(session.game)} alt={session.game} className="absolute inset-0 h-full w-full object-cover" />
+          : <span className="absolute inset-0 flex items-center justify-center text-2xl font-bold" style={{ color: session.coverAccent }}>{session.game[0]}</span>
+        }
       </div>
 
       <div className="min-w-0 flex-1">

@@ -3,20 +3,19 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { Clock, Search } from "lucide-react";
-import { MOCK_GAME_ACTIVITY, avatarSrc, playerHref, type MockGameActivity, type MockJourneyEntry } from "@/lib/mock";
+import { MOCK_GAME_ACTIVITY, avatarSrc, gameCoverSrc, playerHref, type MockGameActivity, type MockJourneyEntry } from "@/lib/mock";
 
 function GameCover({ coverColor, coverAccent, game }: { coverColor: string; coverAccent: string; game: string }) {
+  const cover = gameCoverSrc(game);
   return (
     <div
       className="relative h-14 w-12 shrink-0 overflow-hidden rounded-md"
       style={{ backgroundColor: coverColor }}
     >
-      <span
-        className="absolute inset-0 flex items-center justify-center text-2xl font-bold"
-        style={{ color: coverAccent }}
-      >
-        {game[0]}
-      </span>
+      {cover
+        ? <img src={cover} alt={game} className="absolute inset-0 h-full w-full object-cover" />
+        : <span className="absolute inset-0 flex items-center justify-center text-2xl font-bold" style={{ color: coverAccent }}>{game[0]}</span>
+      }
     </div>
   );
 }

@@ -9,6 +9,7 @@ import {
   MY_PLAYER_ID,
   PLAYERS,
   SESSIONS,
+  gameCoverSrc,
   type MockGameResult,
   type MockPendingSession,
   type MockSession,
@@ -26,17 +27,16 @@ function GameCover({
   size: "sm" | "md";
 }) {
   const dims = size === "sm" ? "h-10 w-10 text-lg" : "h-16 w-16 text-2xl";
+  const cover = gameCoverSrc(game);
   return (
     <div
       className={`relative ${dims} shrink-0 overflow-hidden rounded-md`}
       style={{ backgroundColor: coverColor }}
     >
-      <span
-        className="absolute inset-0 flex items-center justify-center font-bold"
-        style={{ color: coverAccent }}
-      >
-        {game[0]}
-      </span>
+      {cover
+        ? <img src={cover} alt={game} className="absolute inset-0 h-full w-full object-cover" />
+        : <span className="absolute inset-0 flex items-center justify-center font-bold" style={{ color: coverAccent }}>{game[0]}</span>
+      }
     </div>
   );
 }

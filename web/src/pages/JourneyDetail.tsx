@@ -12,6 +12,7 @@ import {
   PLAYERS,
   SESSIONS,
   avatarSrc,
+  gameCoverSrc,
   initials,
   playerHref,
   type MockComment,
@@ -169,12 +170,10 @@ export default function JourneyDetail() {
             className="relative h-24 w-24 shrink-0 overflow-hidden rounded-md"
             style={{ backgroundColor: session.coverColor }}
           >
-            <span
-              className="absolute inset-0 flex items-center justify-center text-4xl font-bold"
-              style={{ color: session.coverAccent }}
-            >
-              {session.game[0]}
-            </span>
+            {gameCoverSrc(session.game)
+              ? <img src={gameCoverSrc(session.game)} alt={session.game} className="absolute inset-0 h-full w-full object-cover" />
+              : <span className="absolute inset-0 flex items-center justify-center text-4xl font-bold" style={{ color: session.coverAccent }}>{session.game[0]}</span>
+            }
           </div>
           <div className="min-w-0 flex-1">
             <h1 className="mb-1.5 text-xl font-bold">{session.game}</h1>

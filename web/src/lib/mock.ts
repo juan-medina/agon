@@ -311,6 +311,25 @@ export function avatarSrc(player: Player): string {
   return player.avatarUrl ?? `https://i.pravatar.cc/64?u=${encodeURIComponent(player.id)}`;
 }
 
+const GAME_COVER_URLS: Record<string, string> = {
+  "Elden Ring": "https://cdn.akamai.steamstatic.com/steam/apps/1245620/library_600x900.jpg",
+  "Baldur's Gate 3": "https://cdn.akamai.steamstatic.com/steam/apps/1086940/library_600x900.jpg",
+  "Hollow Knight": "https://cdn.akamai.steamstatic.com/steam/apps/367520/library_600x900.jpg",
+  "Cyberpunk 2077": "https://cdn.akamai.steamstatic.com/steam/apps/1091500/library_600x900.jpg",
+  "Hades II": "https://cdn.akamai.steamstatic.com/steam/apps/1145360/library_600x900.jpg",
+  "Dead Cells": "https://cdn.akamai.steamstatic.com/steam/apps/588650/library_600x900.jpg",
+  "Dark Souls III": "https://cdn.akamai.steamstatic.com/steam/apps/374320/library_600x900.jpg",
+  "Sekiro": "https://cdn.akamai.steamstatic.com/steam/apps/814380/library_600x900.jpg",
+  "Celeste": "https://cdn.akamai.steamstatic.com/steam/apps/504230/library_600x900.jpg",
+  "Disco Elysium": "https://cdn.akamai.steamstatic.com/steam/apps/632470/library_600x900.jpg",
+  "Persona 5 Royal": "https://cdn.akamai.steamstatic.com/steam/apps/1687950/library_600x900.jpg",
+  "Monster Hunter: World": "https://cdn.akamai.steamstatic.com/steam/apps/582010/library_600x900.jpg",
+};
+
+export function gameCoverSrc(game: string): string | undefined {
+  return GAME_COVER_URLS[game];
+}
+
 export function playerHref(player: Player): string {
   return player.id === MY_PLAYER_ID ? "/hero" : `/player/${player.handle}`;
 }
