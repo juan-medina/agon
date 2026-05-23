@@ -11,6 +11,7 @@ import Echoes from "@/pages/Echoes";
 import JourneyDetail from "@/pages/JourneyDetail";
 import PlayerProfile from "@/pages/PlayerProfile";
 import Settings from "@/pages/Settings";
+import NotFound from "@/pages/NotFound";
 
 const router = createBrowserRouter([
   { path: "/login", element: <Login /> },
@@ -26,6 +27,7 @@ const router = createBrowserRouter([
       { path: "player/:handle", element: <PlayerProfile /> },
       { path: "echoes", element: <Echoes /> },
       { path: "settings", element: <Settings /> },
+      { path: "*", element: <NotFound /> },
     ],
   },
 ]);

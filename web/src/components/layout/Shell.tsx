@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 import { Navigate, Outlet } from "react-router";
 import { isAuthenticated } from "@/services/auth";
+import ErrorBoundary from "@/components/ErrorBoundary";
 import Sidebar from "./Sidebar";
 import TopBar from "./TopBar";
 
@@ -14,7 +15,9 @@ export default function Shell() {
       <div className="flex flex-1 flex-col overflow-hidden">
         <TopBar />
         <main className="flex-1 overflow-auto p-6">
-          <Outlet />
+          <ErrorBoundary>
+            <Outlet />
+          </ErrorBoundary>
         </main>
       </div>
     </div>
