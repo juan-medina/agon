@@ -1,7 +1,9 @@
 // SPDX-FileCopyrightText: 2026 Juan Medina
 // SPDX-License-Identifier: MIT
 import { useState } from "react";
+import { Search } from "lucide-react";
 import {
+  GAME_LIBRARY,
   MOCK_EXCLUSIONS,
   MOCK_GAME_HINTS,
   MY_PLAYER,
@@ -16,7 +18,14 @@ export default function Settings() {
   const [hints, setHints] = useState<MockGameHint[]>([...MOCK_GAME_HINTS]);
   const [confirmingExe, setConfirmingExe] = useState<string | null>(null);
   const [confirmingHintExe, setConfirmingHintExe] = useState<string | null>(null);
+  const [editingHintExe, setEditingHintExe] = useState<string | null>(null);
+  const [editQuery, setEditQuery] = useState("");
   const [confirmingSignOut, setConfirmingSignOut] = useState(false);
+
+  const editGameResults =
+    editingHintExe !== null && editQuery.length >= 2
+      ? GAME_LIBRARY.filter((g) => g.game.toLowerCase().includes(editQuery.toLowerCase())).slice(0, 5)
+      : [];
 
   function removeExclusion(exeName: string) {
     setExclusions((prev) => prev.filter((e) => e.exeName !== exeName));
@@ -26,6 +35,18 @@ export default function Settings() {
   function removeHint(exeName: string) {
     setHints((prev) => prev.filter((h) => h.exeName !== exeName));
     setConfirmingHintExe(null);
+  }
+
+  function updateHintGame(exeName: string, newGame: string) {
+    setHints((prev) => prev.map((h) => (h.exeName === exeName ? { ...h, game: newGame } : h)));
+    setEditingHintExe(null);
+    setEditQuery("");
+  }
+
+  function startEditingHint(exeName: string) {
+    setConfirmingHintExe(null);
+    setEditingHintExe(exeName);
+    setEditQuery("");
   }
 
   return (
@@ -163,7 +184,59 @@ export default function Settings() {
             ) : (
               <ul className="space-y-2">
                 {hints.map((hint) =>
-                  confirmingHintExe === hint.exeName ? (
+                  editingHintExe === hint.exeName ? (
+                    <li
+                      key={hint.exeName}
+                      className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2"
+                    >
+                      <div className="mb-2 flex items-center gap-1.5 text-sm">
+                        <span className="font-mono">{hint.exeName}</span>
+                        <span className="text-muted-foreground">→</span>
+                        <span className="truncate text-muted-foreground">{hint.game}</span>
+                      </div>
+                      <div className="relative mb-1">
+                        <Search
+                          size={13}
+                          className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+                        />
+                        <input
+                          type="text"
+                          value={editQuery}
+                          onChange={(e) => setEditQuery(e.target.value)}
+                          placeholder="Search for a game…"
+                          autoFocus
+                          className="w-full rounded-md border border-border bg-background py-1.5 pl-7 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                        />
+                      </div>
+                      {editGameResults.length > 0 && (
+                        <div className="mb-1 divide-y divide-border overflow-hidden rounded-md border border-border">
+                          {editGameResults.map((g) => (
+                            <button
+                              key={g.id}
+                              type="button"
+                              onClick={() => updateHintGame(hint.exeName, g.game)}
+                              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-accent/10"
+                            >
+                              {g.game}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      {editQuery.length >= 2 && editGameResults.length === 0 && (
+                        <p className="mb-1 text-xs text-muted-foreground">
+                          No games found for &ldquo;{editQuery}&rdquo;
+                        </p>
+                      )}
+                      <div className="flex justify-end">
+                        <button
+                          onClick={() => { setEditingHintExe(null); setEditQuery(""); }}
+                          className="rounded-md px-3 py-1 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </li>
+                  ) : confirmingHintExe === hint.exeName ? (
                     <li
                       key={hint.exeName}
                       className="flex items-center justify-between rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2"
@@ -196,13 +269,22 @@ export default function Settings() {
                         <span className="text-muted-foreground">→</span>
                         <span className="truncate">{hint.game}</span>
                       </div>
-                      <button
-                        onClick={() => setConfirmingHintExe(hint.exeName)}
-                        aria-label={`Remove hint for ${hint.exeName}`}
-                        className="ml-2 shrink-0 rounded-md px-3 py-1 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                      >
-                        Remove
-                      </button>
+                      <div className="ml-2 flex shrink-0 items-center gap-1">
+                        <button
+                          onClick={() => startEditingHint(hint.exeName)}
+                          aria-label={`Edit hint for ${hint.exeName}`}
+                          className="rounded-md px-3 py-1 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => setConfirmingHintExe(hint.exeName)}
+                          aria-label={`Remove hint for ${hint.exeName}`}
+                          className="rounded-md px-3 py-1 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                        >
+                          Remove
+                        </button>
+                      </div>
                     </li>
                   ),
                 )}

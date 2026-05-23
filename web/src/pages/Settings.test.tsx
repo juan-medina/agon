@@ -3,7 +3,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
-import { MOCK_EXCLUSIONS, MOCK_GAME_HINTS } from "@/lib/mock";
+import { GAME_LIBRARY, MOCK_EXCLUSIONS, MOCK_GAME_HINTS } from "@/lib/mock";
 import Settings from "./Settings";
 
 function renderSettings() {
@@ -120,5 +120,54 @@ describe("Settings — game hints", () => {
       await user.click(screen.getByRole("button", { name: "Remove" }));
     }
     expect(screen.getByText("No hints yet.")).toBeInTheDocument();
+  });
+});
+
+describe("Settings — game hint editing", () => {
+  it("clicking Edit on a hint shows a search input", async () => {
+    const user = userEvent.setup();
+    renderSettings();
+    await user.click(
+      screen.getByRole("button", { name: `Edit hint for ${MOCK_GAME_HINTS[0].exeName}` }),
+    );
+    expect(screen.getByPlaceholderText("Search for a game…")).toBeInTheDocument();
+  });
+
+  it("canceling edit restores the normal row", async () => {
+    const user = userEvent.setup();
+    renderSettings();
+    await user.click(
+      screen.getByRole("button", { name: `Edit hint for ${MOCK_GAME_HINTS[0].exeName}` }),
+    );
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByPlaceholderText("Search for a game…")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: `Edit hint for ${MOCK_GAME_HINTS[0].exeName}` }),
+    ).toBeInTheDocument();
+  });
+
+  it("typing a game name shows matching results", async () => {
+    const user = userEvent.setup();
+    renderSettings();
+    await user.click(
+      screen.getByRole("button", { name: `Edit hint for ${MOCK_GAME_HINTS[0].exeName}` }),
+    );
+    const matching = GAME_LIBRARY.find((g) => g.game !== MOCK_GAME_HINTS[0].game)!;
+    await user.type(screen.getByPlaceholderText("Search for a game…"), matching.game.slice(0, 4));
+    expect(screen.getByRole("button", { name: matching.game })).toBeInTheDocument();
+  });
+
+  it("selecting a game updates the hint and closes the editor", async () => {
+    const user = userEvent.setup();
+    renderSettings();
+    const hint = MOCK_GAME_HINTS[0];
+    // Pick a game not already present in any hint so the name is unique after the edit
+    const otherGames = MOCK_GAME_HINTS.map((h) => h.game);
+    const newGame = GAME_LIBRARY.find((g) => !otherGames.includes(g.game))!;
+    await user.click(screen.getByRole("button", { name: `Edit hint for ${hint.exeName}` }));
+    await user.type(screen.getByPlaceholderText("Search for a game…"), newGame.game.slice(0, 4));
+    await user.click(screen.getByRole("button", { name: newGame.game }));
+    expect(screen.queryByPlaceholderText("Search for a game…")).not.toBeInTheDocument();
+    expect(screen.getByText(newGame.game)).toBeInTheDocument();
   });
 });
