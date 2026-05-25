@@ -1,14 +1,10 @@
 // SPDX-FileCopyrightText: 2026 Juan Medina
 // SPDX-License-Identifier: MIT
-import { useNavigate } from "react-router";
 import { signIn } from "@/services/auth";
 
 export default function Login() {
-  const navigate = useNavigate();
-
-  async function handleSignIn() {
-    await signIn();
-    navigate("/", { replace: true });
+  function handleSignIn() {
+    signIn().catch(console.error);
   }
 
   return (

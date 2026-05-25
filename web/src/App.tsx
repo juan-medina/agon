@@ -3,6 +3,7 @@
 import { RouterProvider, createBrowserRouter } from "react-router";
 import Shell from "@/components/layout/Shell";
 import Login from "@/pages/Login";
+import AuthComplete from "@/pages/AuthComplete";
 import Realm from "@/pages/Realm";
 import Journeys from "@/pages/Journeys";
 import Players from "@/pages/Players";
@@ -15,6 +16,7 @@ import NotFound from "@/pages/NotFound";
 
 const router = createBrowserRouter([
   { path: "/login", element: <Login /> },
+  { path: "/auth/complete", element: <AuthComplete /> },
   {
     path: "/",
     element: <Shell />,

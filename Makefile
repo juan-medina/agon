@@ -1,7 +1,15 @@
-.PHONY: web test lint build setup db-init db-start db-stop
+.PHONY: web api run-api gen-keys test lint build setup db-init db-start db-stop
 
 web:
-	cd web && pnpm dev
+	powershell -ExecutionPolicy Bypass -File scripts/run-web.ps1
+
+api: run-api
+
+run-api:
+	powershell -ExecutionPolicy Bypass -File scripts/run-api.ps1
+
+gen-keys:
+	cd api && go run ./cmd/gen-keys -out ../keys/server.pem
 
 test:
 	cd web && pnpm test
