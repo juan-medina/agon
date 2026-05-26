@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-// stateEntry holds OAuth state keyed by the frontend's PKCE challenge.
+// stateEntry holds OAuth state keyed by the server-generated state nonce.
 // serverVerifier is set on initAuth; did is set after the Bluesky callback.
 type stateEntry struct {
 	serverVerifier string
@@ -26,10 +26,10 @@ func newStateStore() *stateStore {
 	return s
 }
 
-func (s *stateStore) put(challenge, serverVerifier string, ttl time.Duration) {
+func (s *stateStore) put(state, serverVerifier string, ttl time.Duration) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.entries[challenge] = stateEntry{
+	s.entries[state] = stateEntry{
 		serverVerifier: serverVerifier,
 		expires:        time.Now().Add(ttl),
 	}
@@ -37,32 +37,32 @@ func (s *stateStore) put(challenge, serverVerifier string, ttl time.Duration) {
 
 // setDID populates the DID for an existing entry. Returns false if the entry
 // is missing or expired.
-func (s *stateStore) setDID(challenge, did string) bool {
+func (s *stateStore) setDID(state, did string) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	e, ok := s.entries[challenge]
+	e, ok := s.entries[state]
 	if !ok || time.Now().After(e.expires) {
 		return false
 	}
 	e.did = did
-	s.entries[challenge] = e
+	s.entries[state] = e
 	return true
 }
 
-func (s *stateStore) get(challenge string) (stateEntry, bool) {
+func (s *stateStore) get(state string) (stateEntry, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	e, ok := s.entries[challenge]
+	e, ok := s.entries[state]
 	if !ok || time.Now().After(e.expires) {
 		return stateEntry{}, false
 	}
 	return e, true
 }
 
-func (s *stateStore) delete(challenge string) {
+func (s *stateStore) delete(state string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	delete(s.entries, challenge)
+	delete(s.entries, state)
 }
 
 func (s *stateStore) gc() {

@@ -4,49 +4,61 @@ package main
 
 import (
 	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/x509"
 	"encoding/pem"
-	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
 )
 
 func main() {
-	out := flag.String("out", "keys/server.pem", "path to write the private key PEM")
-	flag.Parse()
+	if err := writeECDSA("../keys/dpop.pem"); err != nil {
+		fmt.Fprintf(os.Stderr, "dpop key: %v\n", err)
+		os.Exit(1)
+	}
+	if err := writeEd25519("../keys/session.pem"); err != nil {
+		fmt.Fprintf(os.Stderr, "session key: %v\n", err)
+		os.Exit(1)
+	}
+}
 
-	// ES256 (P-256) is required for Bluesky's DPoP; EdDSA is not supported.
+// writeECDSA generates a P-256 key. ES256 is required by AT Protocol for DPoP.
+func writeECDSA(path string) error {
 	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "generate key: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("generate: %w", err)
 	}
+	return writePKCS8(path, priv, "P-256")
+}
 
-	pkcs8, err := x509.MarshalPKCS8PrivateKey(priv)
+// writeEd25519 generates an Ed25519 key for signing session JWTs.
+func writeEd25519(path string) error {
+	_, priv, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "marshal key: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("generate: %w", err)
 	}
+	return writePKCS8(path, priv, "Ed25519")
+}
 
-	if err := os.MkdirAll(filepath.Dir(*out), 0700); err != nil {
-		fmt.Fprintf(os.Stderr, "mkdir: %v\n", err)
-		os.Exit(1)
-	}
-
-	f, err := os.OpenFile(*out, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
+func writePKCS8(path string, key interface{}, label string) error {
+	pkcs8, err := x509.MarshalPKCS8PrivateKey(key)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "open %s: %v\n", *out, err)
-		os.Exit(1)
+		return fmt.Errorf("marshal: %w", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+		return fmt.Errorf("mkdir: %w", err)
+	}
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
+	if err != nil {
+		return fmt.Errorf("open %s: %w", path, err)
 	}
 	defer f.Close()
-
 	if err := pem.Encode(f, &pem.Block{Type: "PRIVATE KEY", Bytes: pkcs8}); err != nil {
-		fmt.Fprintf(os.Stderr, "write PEM: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("write PEM: %w", err)
 	}
-
-	fmt.Printf("P-256 key written to %s (mode 0600)\n", *out)
+	fmt.Printf("%s key written to %s (mode 0600)\n", label, path)
+	return nil
 }

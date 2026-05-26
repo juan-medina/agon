@@ -4,6 +4,7 @@ package main
 
 import (
 	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
@@ -15,13 +16,18 @@ import (
 )
 
 func main() {
-	keyFile := envOr("KEY_FILE", "../keys/server.pem")
+	dpopKeyFile := envOr("DPOP_KEY_FILE", "../keys/dpop.pem")
+	sessionKeyFile := envOr("SESSION_KEY_FILE", "../keys/session.pem")
 	addr := envOr("SERVER_ADDR", ":8080")
 	allowedOrigin := envOr("ALLOWED_ORIGIN", "http://127.0.0.1:5173")
 
-	priv, err := loadPrivateKey(keyFile)
+	dpopPriv, err := loadECDSAKey(dpopKeyFile)
 	if err != nil {
-		log.Fatalf("load key: %v\nRun `make gen-keys` first.", err)
+		log.Fatalf("load DPoP key: %v\nRun `make gen-keys` first.", err)
+	}
+	jwtPriv, err := loadEd25519Key(sessionKeyFile)
+	if err != nil {
+		log.Fatalf("load session key: %v\nRun `make gen-keys` first.", err)
 	}
 
 	cfg := auth.Config{
@@ -34,7 +40,7 @@ func main() {
 	}
 
 	mux := http.NewServeMux()
-	auth.NewHandler(priv, cfg).Register(mux)
+	auth.NewHandler(dpopPriv, jwtPriv, cfg).Register(mux)
 
 	log.Printf("listening on %s (frontend: %s)", addr, cfg.FrontendURL)
 	if err := http.ListenAndServe(addr, cors(allowedOrigin, mux)); err != nil {
@@ -59,7 +65,31 @@ func cors(allowedOrigin string, next http.Handler) http.Handler {
 	})
 }
 
-func loadPrivateKey(path string) (*ecdsa.PrivateKey, error) {
+func loadECDSAKey(path string) (*ecdsa.PrivateKey, error) {
+	key, err := loadPKCS8Key(path)
+	if err != nil {
+		return nil, err
+	}
+	priv, ok := key.(*ecdsa.PrivateKey)
+	if !ok {
+		return nil, fmt.Errorf("%s does not contain a P-256 key (run `make gen-keys` to regenerate)", path)
+	}
+	return priv, nil
+}
+
+func loadEd25519Key(path string) (ed25519.PrivateKey, error) {
+	key, err := loadPKCS8Key(path)
+	if err != nil {
+		return nil, err
+	}
+	priv, ok := key.(ed25519.PrivateKey)
+	if !ok {
+		return nil, fmt.Errorf("%s does not contain an Ed25519 key (run `make gen-keys` to regenerate)", path)
+	}
+	return priv, nil
+}
+
+func loadPKCS8Key(path string) (interface{}, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("read %s: %w", path, err)
@@ -70,13 +100,9 @@ func loadPrivateKey(path string) (*ecdsa.PrivateKey, error) {
 	}
 	key, err := x509.ParsePKCS8PrivateKey(block.Bytes)
 	if err != nil {
-		return nil, fmt.Errorf("parse key: %w", err)
+		return nil, fmt.Errorf("parse key in %s: %w", path, err)
 	}
-	priv, ok := key.(*ecdsa.PrivateKey)
-	if !ok {
-		return nil, fmt.Errorf("%s does not contain a P-256 key (run `make gen-keys` to regenerate)", path)
-	}
-	return priv, nil
+	return key, nil
 }
 
 func envOr(key, def string) string {

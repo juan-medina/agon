@@ -4,6 +4,7 @@ package auth
 
 import (
 	"crypto/ecdsa"
+	"crypto/ed25519"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -26,18 +27,20 @@ type Config struct {
 
 // Handler handles the Bluesky OAuth flow.
 type Handler struct {
-	priv  *ecdsa.PrivateKey
-	pub   *ecdsa.PublicKey
-	store *stateStore
-	cfg   Config
+	dpopPriv *ecdsa.PrivateKey
+	jwtPriv  ed25519.PrivateKey
+	jwtPub   ed25519.PublicKey
+	store    *stateStore
+	cfg      Config
 }
 
-func NewHandler(priv *ecdsa.PrivateKey, cfg Config) *Handler {
+func NewHandler(dpopPriv *ecdsa.PrivateKey, jwtPriv ed25519.PrivateKey, cfg Config) *Handler {
 	return &Handler{
-		priv:  priv,
-		pub:   &priv.PublicKey,
-		store: newStateStore(),
-		cfg:   cfg,
+		dpopPriv: dpopPriv,
+		jwtPriv:  jwtPriv,
+		jwtPub:   jwtPriv.Public().(ed25519.PublicKey),
+		store:    newStateStore(),
+		cfg:      cfg,
 	}
 }
 
@@ -85,13 +88,14 @@ func (h *Handler) clientMetadata(w http.ResponseWriter, _ *http.Request) {
 	})
 }
 
-// initAuth stores the frontend's PKCE challenge in a cookie, pushes the
-// authorization request to Bluesky via PAR, then redirects the browser to the
-// Bluesky authorize endpoint with just client_id + request_uri.
+// initAuth generates a random OAuth state value, pushes the authorization
+// request to Bluesky via PAR, stores the state in a cookie for CSRF validation,
+// then redirects the browser to the Bluesky authorize endpoint.
 func (h *Handler) initAuth(w http.ResponseWriter, r *http.Request) {
-	challenge := r.URL.Query().Get("challenge")
-	if challenge == "" {
-		http.Error(w, "missing challenge", http.StatusBadRequest)
+	state, err := GenerateVerifier()
+	if err != nil {
+		log.Printf("auth/init: %v", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 
@@ -103,18 +107,18 @@ func (h *Handler) initAuth(w http.ResponseWriter, r *http.Request) {
 	}
 	serverChallenge := DeriveChallenge(serverVerifier)
 
-	h.store.put(challenge, serverVerifier, 10*time.Minute)
+	h.store.put(state, serverVerifier, 10*time.Minute)
 
 	http.SetCookie(w, &http.Cookie{
-		Name:     "pkce_challenge",
-		Value:    challenge,
+		Name:     "auth_state",
+		Value:    state,
 		Path:     "/",
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   600,
 	})
 
-	requestURI, err := h.doPAR(challenge, serverChallenge)
+	requestURI, err := h.doPAR(state, serverChallenge)
 	if err != nil {
 		log.Printf("auth/init: PAR: %v", err)
 		http.Error(w, "authorization request failed", http.StatusBadGateway)
@@ -152,7 +156,7 @@ func (h *Handler) doPAR(state, serverChallenge string) (string, error) {
 }
 
 func (h *Handler) doPARRequest(state, serverChallenge, nonce string) (parResult, error) {
-	dpopProof, err := CreateDPoPProof(h.priv, "POST", h.cfg.PAREndpoint, nonce)
+	dpopProof, err := CreateDPoPProof(h.dpopPriv, "POST", h.cfg.PAREndpoint, nonce)
 	if err != nil {
 		return parResult{}, fmt.Errorf("dpop proof: %w", err)
 	}
@@ -226,10 +230,9 @@ func (h *Handler) callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// CSRF check: the pkce_challenge cookie was set by initAuth on 127.0.0.1;
-	// Bluesky redirects back to 127.0.0.1 so the browser sends it here. The
-	// cookie value must match the state param to confirm this is our redirect.
-	cookie, err := r.Cookie("pkce_challenge")
+	// CSRF check: auth_state cookie was set by initAuth; Bluesky echoes the
+	// state param back on redirect. Cookie must match to confirm this is our flow.
+	cookie, err := r.Cookie("auth_state")
 	if err != nil || cookie.Value != challenge {
 		http.Error(w, "state mismatch", http.StatusBadRequest)
 		return
@@ -256,46 +259,33 @@ func (h *Handler) callback(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, h.cfg.FrontendURL+"/auth/complete", http.StatusFound)
 }
 
-// session verifies the frontend's PKCE verifier against the challenge cookie,
+// session looks up the completed OAuth state from the auth_state cookie,
 // issues a signed session JWT, and returns the DID.
 func (h *Handler) session(w http.ResponseWriter, r *http.Request) {
-	var body struct {
-		Verifier string `json:"verifier"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Verifier == "" {
-		http.Error(w, "missing verifier", http.StatusBadRequest)
-		return
-	}
-
-	cookie, err := r.Cookie("pkce_challenge")
+	cookie, err := r.Cookie("auth_state")
 	if err != nil {
-		http.Error(w, "missing challenge cookie", http.StatusBadRequest)
+		http.Error(w, "missing state cookie", http.StatusBadRequest)
 		return
 	}
-	challenge := cookie.Value
+	state := cookie.Value
 
-	if !VerifyChallenge(body.Verifier, challenge) {
-		http.Error(w, "verifier mismatch", http.StatusUnauthorized)
-		return
-	}
-
-	entry, ok := h.store.get(challenge)
+	entry, ok := h.store.get(state)
 	if !ok || entry.did == "" {
-		http.Error(w, "state not found or DID pending", http.StatusBadRequest)
+		http.Error(w, "state not found or auth pending", http.StatusBadRequest)
 		return
 	}
 
-	tokenString, err := CreateSessionJWT(entry.did, h.priv)
+	tokenString, err := CreateSessionJWT(entry.did, h.jwtPriv)
 	if err != nil {
 		log.Printf("auth/session: create JWT: %v", err)
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 
-	h.store.delete(challenge)
+	h.store.delete(state)
 
 	http.SetCookie(w, &http.Cookie{
-		Name:     "pkce_challenge",
+		Name:     "auth_state",
 		Value:    "",
 		Path:     "/",
 		HttpOnly: true,
@@ -360,7 +350,7 @@ func (h *Handler) exchangeCode(code, serverVerifier string) (string, error) {
 }
 
 func (h *Handler) doTokenExchange(code, serverVerifier, nonce string) (exchangeResult, error) {
-	dpopProof, err := CreateDPoPProof(h.priv, "POST", h.cfg.TokenEndpoint, nonce)
+	dpopProof, err := CreateDPoPProof(h.dpopPriv, "POST", h.cfg.TokenEndpoint, nonce)
 	if err != nil {
 		return exchangeResult{}, fmt.Errorf("dpop proof: %w", err)
 	}

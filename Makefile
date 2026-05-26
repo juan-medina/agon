@@ -9,7 +9,7 @@ run-api:
 	powershell -ExecutionPolicy Bypass -File scripts/run-api.ps1
 
 gen-keys:
-	cd api && go run ./cmd/gen-keys -out ../keys/server.pem
+	cd api && go run ./cmd/gen-keys
 
 test:
 	cd web && pnpm test

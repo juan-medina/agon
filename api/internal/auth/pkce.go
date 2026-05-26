@@ -24,7 +24,3 @@ func DeriveChallenge(verifier string) string {
 	return base64.RawURLEncoding.EncodeToString(h[:])
 }
 
-// VerifyChallenge reports whether SHA-256(verifier) == challenge.
-func VerifyChallenge(verifier, challenge string) bool {
-	return DeriveChallenge(verifier) == challenge
-}
