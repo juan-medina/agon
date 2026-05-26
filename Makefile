@@ -12,6 +12,7 @@ gen-keys:
 	cd api && go run ./cmd/gen-keys
 
 test:
+	cd api && go test ./...
 	cd web && pnpm test
 
 lint:
