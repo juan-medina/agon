@@ -9,8 +9,11 @@ import { deriveColor } from "@/lib/display";
 // Still points to the mock ID while follow lists are not yet backed by the API.
 export const MY_PLAYER_ID: string = MOCK_MY_PLAYER_ID;
 
+export class SessionExpiredError extends Error {}
+
 export async function getCurrentPlayer(): Promise<Player> {
   const resp = await fetch(`${API_BASE}/api/me`, { credentials: "include" });
+  if (resp.status === 401 || resp.status === 404) throw new SessionExpiredError();
   if (!resp.ok) throw new Error(`get profile: ${resp.status}`);
   const data = await resp.json();
   return {

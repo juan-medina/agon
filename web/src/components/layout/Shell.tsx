@@ -2,20 +2,21 @@
 // SPDX-License-Identifier: MIT
 import { Navigate, Outlet } from "react-router";
 import { useQuery } from "@tanstack/react-query";
-import { getCurrentPlayer } from "@/services/auth";
+import { getCurrentPlayer, SessionExpiredError } from "@/services/auth";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import Sidebar from "./Sidebar";
 import TopBar from "./TopBar";
 
 export default function Shell() {
-  const { data: player, isLoading } = useQuery({
+  const { data: player, isLoading, error } = useQuery({
     queryKey: ["auth", "me"],
     queryFn: getCurrentPlayer,
     retry: false,
+    refetchInterval: 5 * 60 * 1000, // revalidate session every 5 minutes
   });
 
   if (isLoading) return null;
-  if (!player) return <Navigate to="/login" replace />;
+  if (error instanceof SessionExpiredError || !player) return <Navigate to="/login" replace />;
 
   return (
     <div className="flex h-screen bg-background text-foreground">
