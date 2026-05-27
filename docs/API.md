@@ -9,7 +9,7 @@ Agōn Go API server — endpoint reference. All routes are served from the same 
 - **Timestamps** — RFC 3339 UTC in all requests and responses (`"2026-05-23T14:30:00Z"`).
 - **Durations** — integer seconds in requests and responses. Clients format for display (`11640` → `"3h 14m"`).
 - **Player identity** — players are identified by their AT Proto DID (`did:plc:…`). Handles (`maria.bsky.social`) are sourced from the Bluesky PDS and treated as display names, not stable identifiers.
-- **Journey IDs** — confirmed journeys use their AT Proto rkey. Pending sessions use server-generated UUIDs.
+- **Journey IDs** — confirmed journeys use their AT Proto rkey. Pending journeys use server-generated UUIDs.
 - **Pagination** — cursor-based. Responses include `"next_cursor"` when a further page exists. Pass `cursor=<value>` to advance. `limit` defaults to 20, max 50.
 
 ## Authentication
@@ -115,7 +115,7 @@ All errors return a JSON body:
 
 `log` and `started_at` are optional. `liked_by_me` reflects the authenticated user's like state.
 
-### PendingSession
+### PendingJourney
 
 ```json
 {
@@ -130,7 +130,7 @@ All errors return a JSON body:
 }
 ```
 
-`status`: `"active"` | `"ended"`. `game` is `null` when no IGDB match was found. `exe_name` and `window_title` are present only for agent-detected sessions.
+`status`: `"active"` | `"ended"`. `game` is `null` when no IGDB match was found. `exe_name` and `window_title` are present only for agent-detected journeys.
 
 ### Comment
 
@@ -492,13 +492,13 @@ Returns players who have also played this game, split into friends (followed by 
 
 ---
 
-### Pending Sessions
+### Pending Journeys
 
-Unconfirmed sessions — either detected by the agent or in the process of being confirmed manually. Stored in Postgres; evicted after 7 days.
+Unconfirmed journeys — either detected by the agent or in the process of being confirmed manually. Stored in Postgres; evicted after 7 days.
 
-#### `GET /pending-sessions`
+#### `GET /pending-journeys`
 
-Returns pending sessions for the authenticated user with status `active` or `ended`.
+Returns pending journeys for the authenticated user with status `active` or `ended`.
 
 **Auth** required.
 
@@ -506,15 +506,15 @@ Returns pending sessions for the authenticated user with status `active` or `end
 
 ```json
 {
-  "pending_sessions": [ ]
+  "pending_journeys": [ ]
 }
 ```
 
 ---
 
-#### `POST /pending-sessions/:id/confirm`
+#### `POST /pending-journeys/:id/confirm`
 
-Confirms a pending session. Publishes an `app.agon.journey` record to AT Proto, writes a row to `journeys_index`, and deletes the pending record from Postgres.
+Confirms a pending journey. Publishes an `app.agon.journey` record to AT Proto, writes a row to `journeys_index`, and deletes the pending record from Postgres.
 
 **Auth** required.
 
@@ -532,15 +532,15 @@ Confirms a pending session. Publishes an `app.agon.journey` record to AT Proto, 
 | `igdb_id` | yes | IGDB game ID — may differ from the detected suggestion if the user corrects it |
 | `log` | no | Journey note, max 300 chars |
 
-If `igdb_id` differs from the detected suggestion and the session has an `exe_name`, the server writes an `exe_game_hints` row for this user so future sessions from the same exe skip fuzzy matching.
+If `igdb_id` differs from the detected suggestion and the pending journey has an `exe_name`, the server writes an `exe_game_hints` row for this user so future journeys from the same exe skip fuzzy matching.
 
 **Response `201`** — Journey object (the newly confirmed journey).
 
 ---
 
-#### `POST /pending-sessions/:id/discard`
+#### `POST /pending-journeys/:id/discard`
 
-Discards a pending session permanently.
+Discards a pending journey permanently.
 
 **Auth** required.
 
@@ -548,15 +548,15 @@ Discards a pending session permanently.
 
 ---
 
-#### `POST /pending-sessions/:id/exclude`
+#### `POST /pending-journeys/:id/exclude`
 
-Discards a pending session and adds its associated executable to the user's exclusion list. Only valid when the pending session has an `exe_name`.
+Discards a pending journey and adds its associated executable to the user's exclusion list. Only valid when the pending journey has an `exe_name`.
 
 **Auth** required.
 
 **Response `204`** No body.
 
-**Response `400`** — `invalid_request` — session has no associated executable.
+**Response `400`** — `invalid_request` — journey has no associated executable.
 
 ---
 
@@ -802,7 +802,7 @@ Marks all echoes as read.
 
 ### Exclusions
 
-Executables the agent must not create sessions for.
+Executables the agent must not create journeys for.
 
 #### `GET /exclusions`
 
@@ -928,9 +928,9 @@ Removes a game hint.
 
 Routes used exclusively by the Windows tray agent. The agent authenticates with the same bearer token issued to the user at login — passed via `agon://auth?token=…` at the end of the web OAuth flow.
 
-#### `POST /agent/sessions`
+#### `POST /agent/journeys`
 
-Creates an active pending session when a game process is detected. The server checks the exclusion list and `exe_game_hints` before attempting IGDB fuzzy matching on `window_title`.
+Creates an active pending journey when a game process is detected. The server checks the exclusion list and `exe_game_hints` before attempting IGDB fuzzy matching on `window_title`.
 
 **Auth** required.
 
@@ -943,18 +943,18 @@ Creates an active pending session when a game process is detected. The server ch
 }
 ```
 
-**Response `201`** — pending session created.
+**Response `201`** — pending journey created.
 
 ```json
 {
-  "session_id": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+  "pending_journey_id": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
   "game": { }
 }
 ```
 
 `game` is `null` when no IGDB match was found.
 
-**Response `200`** — exe is excluded, no session created.
+**Response `200`** — exe is excluded, no journey created.
 
 ```json
 { "excluded": true }
@@ -962,21 +962,21 @@ Creates an active pending session when a game process is detected. The server ch
 
 ---
 
-#### `PUT /agent/sessions/:id/heartbeat`
+#### `PUT /agent/journeys/:id/heartbeat`
 
-Updates the last-seen timestamp on an active session. Sessions with no heartbeat for 15 minutes are auto-closed by the server.
+Updates the last-seen timestamp on an active journey. Journeys with no heartbeat for 15 minutes are auto-closed by the server.
 
 **Auth** required.
 
 **Response `204`** No body.
 
-**Response `404`** — `not_found` — session not found or already closed.
+**Response `404`** — `not_found` — journey not found or already closed.
 
 ---
 
-#### `PUT /agent/sessions/:id/end`
+#### `PUT /agent/journeys/:id/end`
 
-Marks a session as `ended` when the game process closes. The server queues an in-app notification to the user.
+Marks a journey as `ended` when the game process closes. The server queues an in-app notification to the user.
 
 **Auth** required.
 
@@ -986,13 +986,13 @@ Marks a session as `ended` when the game process closes. The server queues an in
 { "window_title": "Elden Ring - Shadow of the Erdtree" }
 ```
 
-**Response `200`** — PendingSession object.
+**Response `200`** — PendingJourney object.
 
 ---
 
 #### `GET /agent/exclusions`
 
-Returns the full exclusion list for the authenticated user. The agent fetches this on startup and before each new process detection to decide whether to call `POST /agent/sessions`.
+Returns the full exclusion list for the authenticated user. The agent fetches this on startup and before each new process detection to decide whether to call `POST /agent/journeys`.
 
 **Auth** required.
 
@@ -1029,10 +1029,10 @@ Returns the full exclusion list for the authenticated user. The agent fetches th
 | POST | `/journeys/:id/comments` | ✓ | Post a comment |
 | DELETE | `/journeys/:id/comments/:comment_id` | ✓ | Delete a comment |
 | GET | `/journeys/:id/journey-players` | ✓ | Friends and others on the same game |
-| GET | `/pending-sessions` | ✓ | Pending (unconfirmed) sessions |
-| POST | `/pending-sessions/:id/confirm` | ✓ | Confirm — publish to AT Proto |
-| POST | `/pending-sessions/:id/discard` | ✓ | Discard pending session |
-| POST | `/pending-sessions/:id/exclude` | ✓ | Discard + add exe to exclusion list |
+| GET | `/pending-journeys` | ✓ | Pending (unconfirmed) journeys |
+| POST | `/pending-journeys/:id/confirm` | ✓ | Confirm — publish to AT Proto |
+| POST | `/pending-journeys/:id/discard` | ✓ | Discard pending journey |
+| POST | `/pending-journeys/:id/exclude` | ✓ | Discard + add exe to exclusion list |
 | GET | `/games/search` | ✓ | IGDB game search |
 | GET | `/games/:igdb_id` | ✓ | Game metadata by IGDB ID |
 | GET | `/players/:handle` | ✓ | Player profile |
@@ -1050,7 +1050,7 @@ Returns the full exclusion list for the authenticated user. The agent fetches th
 | GET | `/game-hints` | ✓ | Exe → game hint mappings |
 | PUT | `/game-hints/:exe_name` | ✓ | Set or replace a game hint |
 | DELETE | `/game-hints/:exe_name` | ✓ | Remove a game hint |
-| POST | `/agent/sessions` | ✓ | Agent: game process detected |
-| PUT | `/agent/sessions/:id/heartbeat` | ✓ | Agent: session heartbeat |
-| PUT | `/agent/sessions/:id/end` | ✓ | Agent: game process closed |
+| POST | `/agent/journeys` | ✓ | Agent: game process detected |
+| PUT | `/agent/journeys/:id/heartbeat` | ✓ | Agent: journey heartbeat |
+| PUT | `/agent/journeys/:id/end` | ✓ | Agent: game process closed |
 | GET | `/agent/exclusions` | ✓ | Agent: fetch exclusion list |

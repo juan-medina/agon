@@ -2,25 +2,42 @@
 
 Architecture decisions and the reasoning behind them. This is not a tutorial and not a reference — the code is the reference. Decisions live here so they are not relitigated.
 
+## Terminology
+
+Consistent terms used throughout this document, the codebase, and the UI. When in doubt, use these — not synonyms.
+
+| Term | Meaning |
+|------|---------|
+| **Journey** | A single confirmed gaming session — one game, one player, one block of time. The core unit of Agōn. Published to AT Proto as `app.agon.journey`. |
+| **Pending journey** | A journey that has been detected or started but not yet confirmed by the user. Private, stored in Postgres only, never published to AT Proto. Evicted after 7 days. |
+| **Log** | The owner's optional narrative note on a journey, written once at confirmation time. A field on `app.agon.journey`, immutable after publish. |
+| **Player** | A user of Agōn. Identified by their AT Proto DID. |
+| **Realm** | The home feed — confirmed journeys from players you follow, in reverse chronological order. |
+| **Journeys** | The page showing your own journeys — confirmed history and pending confirmation inbox. |
+| **Players** | The game-centric discovery page — browse who is playing what. Not a social graph view. |
+| **Hero** | Your own profile page — confirmed journey history and stats. |
+| **Echo** | An in-app notification. Triggered by a new comment on your journey or a new follower. |
+| **Exclusion** | An executable the agent will never create a pending journey for. |
+
 ## What we are building
 
-A social feed for gaming sessions, built on AT Proto. The core loop: a client detects or the user manually logs when they are playing a game and for how long, proposes a session record when they stop, the user confirms or discards it, confirmed sessions publish to their AT Proto feed and become visible to followers.
+A social feed for gaming journeys, built on AT Proto. The core loop: a client detects or the user manually logs when they are playing a game and for how long, proposes a journey record when they stop, the user confirms or discards it, confirmed journeys publish to their AT Proto feed and become visible to followers.
 
-Discovery and recommendations are a secondary goal, enabled by the session data that accumulates over time.
+Discovery and recommendations are a secondary goal, enabled by the journey data that accumulates over time.
 
 ## Core product
 
 Two things form the core product:
 
-**API server** — a single Go binary. Handles all backend logic, proxies IGDB with a server-side cache, holds unconfirmed sessions until the user acts on them, and serves the exclusion list to clients.
+**API server** — a single Go binary. Handles all backend logic, proxies IGDB with a server-side cache, holds unconfirmed journeys until the user acts on them, and serves the exclusion list to clients.
 
-**Web frontend** — a React SPA deployed to Cloudflare Pages. Handles session confirmation, the social feed, game search, personal stats, and exclusion management. Works standalone — no client installation required. Users who only play on platforms without an automatic detection client (PS5, Switch, etc.) log sessions manually through the web app.
+**Web frontend** — a React SPA deployed to Cloudflare Pages. Handles journey confirmation, the social feed, game search, personal stats, and exclusion management. Works standalone — no client installation required. Users who only play on platforms without an automatic detection client (PS5, Switch, etc.) log journeys manually through the web app.
 
 ## Clients
 
 Clients are optional. The web app is fully functional without any client installed.
 
-**Windows tray agent** — a C# application distributed as a Windows installer via Velopack. Watches for games via graphics API detection, creates and heartbeats sessions via the API, fires an OS notification with a URL when a game closes. Has no UI beyond a system tray icon and a quit menu item. Registers the `agon://` custom URL scheme on install so the OS can wake it for configuration updates.
+**Windows tray agent** — a C# application distributed as a Windows installer via Velopack. Watches for games via graphics API detection, creates and heartbeats pending journeys via the API, fires an OS notification with a URL when a game closes. Has no UI beyond a system tray icon and a quit menu item. Registers the `agon://` custom URL scheme on install so the OS can wake it for configuration updates.
 
 This is the first client. Future clients could include agents for other platforms, mobile apps, or console companions — anything that can call the API.
 
@@ -40,7 +57,7 @@ C# is used for the Windows tray agent. .NET 9 provides first-class Windows API a
 
 Go was considered and ruled out: it produces a smaller binary but the Windows desktop integration surface (tray, notifications, installer, URL scheme) requires significantly more work in Go than in C#. The developer has deep C# experience from other projects, which matters for a component that needs to work reliably on end-user machines.
 
-The agent has no UI of its own. Any configuration or session review opens the web app in the default browser.
+The agent has no UI of its own. Any configuration or journey review opens the web app in the default browser.
 
 ### Web frontend — React, TypeScript, Vite, pnpm
 
@@ -52,7 +69,7 @@ The frontend is deployed to Cloudflare Pages. Static assets are served from Clou
 
 ### Database — Supabase, Postgres
 
-Supabase provides managed Postgres. The `pg_cron` extension runs the nightly eviction job for expired unconfirmed sessions. The application connects via a standard Postgres connection string and has no knowledge of the provider.
+Supabase provides managed Postgres. The `pg_cron` extension runs the nightly eviction job for expired unconfirmed journeys. The application connects via a standard Postgres connection string and has no knowledge of the provider.
 
 ### Authentication — Bluesky OAuth
 
@@ -82,7 +99,7 @@ When a matching process appears, the agent captures the window title and sends i
 
 We do not maintain an executable-to-game database. The window title approach works without one, is transparent to users and contributors, and covers games from any store or no store.
 
-## Session lifecycle
+## Journey lifecycle
 
 ```
 active      game is running, client is sending heartbeats every 10 minutes
@@ -91,13 +108,13 @@ confirmed   user reviewed and approved, published to AT Proto as app.agon.journe
 discarded   user dismissed
 ```
 
-Sessions only publish to AT Proto on confirmation. Unconfirmed sessions are private, stored in Postgres, and visible in the web app's inbox. Unconfirmed sessions are automatically evicted after 7 days — they are short-lived scaffolding, not permanent records.
+Journeys only publish to AT Proto on confirmation. Unconfirmed journeys are private, stored in Postgres, and visible in the web app's inbox. Unconfirmed journeys are automatically evicted after 7 days — they are short-lived scaffolding, not permanent records.
 
-Heartbeats serve two purposes: accurate duration if the machine crashes, and liveness detection. Sessions with no heartbeat for 15 minutes are auto-closed.
+Heartbeats serve two purposes: accurate duration if the machine crashes, and liveness detection. Pending journeys with no heartbeat for 15 minutes are auto-closed.
 
-When a session reaches ended, the pending card shown to the user includes the raw detection metadata — the executable name and window title the agent captured — as secondary information. This gives the user enough context to judge whether the match is correct without opening anything else. If no IGDB match was found, the card shows "Unknown Game" and prompts the user to search. Three actions are available on the collapsed card: Confirm (proceeds to the log form), Discard (removes the session permanently), and Never detect this (available only when an executable is associated — adds the exe to the exclusion list and dismisses the card). The exclusion action shows an inline confirmation before committing.
+When a journey reaches ended, the pending card shown to the user includes the raw detection metadata — the executable name and window title the agent captured — as secondary information. This gives the user enough context to judge whether the match is correct without opening anything else. If no IGDB match was found, the card shows "Unknown Game" and prompts the user to search. Three actions are available on the collapsed card: Confirm (proceeds to the log form), Discard (removes the pending journey permanently), and Never detect this (available only when an executable is associated — adds the exe to the exclusion list and dismisses the card). The exclusion action shows an inline confirmation before committing.
 
-When the user corrects a game match during confirmation, the confirmed exe → IGDB ID pairing is stored in exe_game_hints. On the next session from the same executable, the server checks this table before attempting fuzzy match, so the suggestion is correct immediately.
+When the user corrects a game match during confirmation, the confirmed exe → IGDB ID pairing is stored in exe_game_hints. On the next journey from the same executable, the server checks this table before attempting fuzzy match, so the suggestion is correct immediately.
 
 ## AT Proto lexicon
 
@@ -105,14 +122,14 @@ All record types Agōn defines, in one place. These are the only things written 
 
 ### `app.agon.journey`
 
-A confirmed game session. Written when the user confirms a pending session or manually logs one. Never written without explicit user action.
+A confirmed game journey. Written when the user confirms a pending journey or manually logs one. Never written without explicit user action.
 
 Fields:
 - `igdbId` — IGDB game ID
 - `gameTitle` — game title, baked in at publish time
 - `coverUrl` — cover art URL, baked in at publish time
 - `genres` — genre list, baked in at publish time
-- `durationSeconds` — session length
+- `durationSeconds` — journey length in seconds
 - `startedAt` — UTC timestamp
 - `endedAt` — UTC timestamp
 - `log` — optional owner narrative, written once at confirmation, immutable after publish
@@ -176,11 +193,11 @@ Two distinct concepts for text attached to a journey:
 
 ## Time and timestamps
 
-Full timestamps (start and end in UTC) are stored on every journey record — required by the AT Proto schema and needed for feed ordering. The distinction between storage and display is intentional: the time of day a session was played is rarely meaningful to a gamer or their followers. What matters is the date.
+Full timestamps (start and end in UTC) are stored on every journey record — required by the AT Proto schema and needed for feed ordering. The distinction between storage and display is intentional: the time of day a journey was played is rarely meaningful to a gamer or their followers. What matters is the date.
 
 **Display rule — journeys** — everywhere a journey's timestamp appears (Realm feed cards, profile journey cards, Journeys history), the label is date-level only:
 
-| Session date | Label |
+| Journey date | Label |
 |---|---|
 | Today | "Today" |
 | Yesterday | "Yesterday" |
@@ -191,7 +208,7 @@ No hours, no minutes, no "3 hours ago" for journeys. The time of day is stored b
 
 **Display rule — comments** — comments are always recent and live inside a journey detail, so relative time ("23 minutes ago", "3 hours ago") is the right signal there. Comments use relative time throughout.
 
-**Manual entry — when** — the confirmation form for a manually logged session asks when the player finished with two options only:
+**Manual entry — when** — the confirmation form for a manually logged journey asks when the player finished with two options only:
 
 - **Just now** (default, pre-selected, no extra input) — end timestamp is the current time
 - **Choose a date** — opens a date-only calendar picker; end timestamp is set to the end of the selected day
@@ -209,7 +226,7 @@ The shell has a fixed sidebar on the left and a top bar across the top.
 | Item | Route | Purpose |
 |------|-------|---------|
 | Realm | `/` | Social feed — journeys from people you follow |
-| Journeys | `/journeys` | Your own sessions — confirmed, pending, history |
+| Journeys | `/journeys` | Your own journeys — confirmed, pending, history |
 | Players | `/players` | Game-centric discovery — browse who is playing what |
 | Hero | `/hero` | Your profile and stats |
 | Settings | `/settings` | App preferences and account |
@@ -236,7 +253,7 @@ Events that do **not** produce an Echo:
 - Likes — too frequent and low-signal for a focused gaming audience
 - Your own comments on your own journey
 
-Echoes are stored server-side (Postgres) per user DID so they persist across devices and sessions. They are marked read when the user visits `/echoes`.
+Echoes are stored server-side (Postgres) per user DID so they persist across devices. They are marked read when the user visits `/echoes`.
 
 ## Realm feed
 
@@ -257,7 +274,7 @@ The only action on the card is the like. There are no comments or reply actions 
 
 The Players page (`/players`) is not a social graph view. It does not show a followers list or a following list — those live on the Hero and PlayerProfile pages. Players is a discovery surface: a feed of games with the players who recently played them beneath each one.
 
-The design premise is that games are the shared context that makes player discovery meaningful. Showing a raw list of accounts to follow is low-signal. Showing "five people played Hollow Knight this week, here are their sessions" gives the visitor something to act on — they can recognise the game, see the log snippets, and decide whether to follow based on shared taste rather than a blank profile.
+The design premise is that games are the shared context that makes player discovery meaningful. Showing a raw list of accounts to follow is low-signal. Showing "five people played Hollow Knight this week, here are their journeys" gives the visitor something to act on — they can recognise the game, see the log snippets, and decide whether to follow based on shared taste rather than a blank profile.
 
 Each game card shows:
 - Game cover art, title, and genre chips
@@ -290,7 +307,7 @@ Postgres is not the source of truth for journeys or follows. AT Proto is. The Po
 If the index tables were lost, they could be rebuilt by replaying the relevant AT Proto records from the PDS. The index exists to serve queries cheaply, not to own data.
 
 The only data that lives exclusively in Postgres and has no AT Proto counterpart:
-- Unconfirmed sessions — private scaffolding, evicted after 7 days
+- Unconfirmed journeys — private scaffolding, evicted after 7 days
 - exe exclusions — per user, permanent until removed
 - exe_game_hints — per user, built from confirmed corrections
 - IGDB cache — server-side cache with TTL
@@ -350,9 +367,9 @@ IGDB responses are cached in Postgres with a TTL. This cache is server-side infr
 
 ## Exclusion list
 
-Users can mark specific executables as non-games so the agent ignores them. Exclusions are stored in Postgres per user DID. The agent fetches the full exclusion list from the API on startup and again each time a new process is detected, before deciding whether to create a session. Game launches are infrequent events so this is negligible traffic. No persistent connection, no polling, no push mechanism needed — exclusions are only relevant at the moment of detection.
+Users can mark specific executables as non-games so the agent ignores them. Exclusions are stored in Postgres per user DID. The agent fetches the full exclusion list from the API on startup and again each time a new process is detected, before deciding whether to create a pending journey. Game launches are infrequent events so this is negligible traffic. No persistent connection, no polling, no push mechanism needed — exclusions are only relevant at the moment of detection.
 
-The primary way to add an exclusion is directly from a pending session card — a "Never detect this" action is available inline whenever a session has an associated executable. Confirming it adds the exe to the exclusion list and dismisses the card without requiring navigation to Settings. Settings provides a management view to see and remove existing exclusions, but it is not the entry point for adding them.
+The primary way to add an exclusion is directly from a pending journey card — a "Never detect this" action is available inline whenever a pending journey has an associated executable. Confirming it adds the exe to the exclusion list and dismisses the card without requiring navigation to Settings. Settings provides a management view to see and remove existing exclusions, but it is not the entry point for adding them.
 
 ## Custom URL scheme
 
@@ -367,7 +384,7 @@ AT Proto      app.agon.journey  — confirmed journeys, fully denormalised, perm
               app.agon.comment  — comments, separate records referencing journey AT URIs
               identity, auth
 
-Postgres      unconfirmed sessions  — evicted after 7 days
+Postgres      unconfirmed journeys  — evicted after 7 days
               exe exclusions        — per user DID, permanent until removed
               exe_game_hints        — per user DID: exe_name → igdb_id, built automatically
                                       from confirmed corrections, used to skip fuzzy match
@@ -393,8 +410,8 @@ Tests are written from the start. Go packages have unit tests alongside the code
 ## What we are not building yet
 
 - Tray agent for platforms other than Windows
-- Console session detection (PSN / Xbox APIs are a future consideration)
-- The language-based recommendation engine (requires session note data at scale)
+- Console journey detection (PSN / Xbox APIs are a future consideration)
+- The language-based recommendation engine (requires journey note data at scale)
 - Self-hosted PDS
 - Federation with other Agōn instances (journeys_index and players_index only cover this server's users)
 
@@ -414,4 +431,4 @@ Two layers enforce this:
 
 The IGDB proxy enforces a separate sub-limit of 4 requests/second upstream — matching IGDB's documented rate limit — independent of how many inbound requests are in flight.
 
-These numbers reflect side-project scale and the real request patterns of a social feed app: a handful of calls on page load, heartbeats every 10 minutes per agent session. They are not arbitrary. Revisit them when there is real traffic data.
+These numbers reflect side-project scale and the real request patterns of a social feed app: a handful of calls on page load, heartbeats every 10 minutes per active pending journey. They are not arbitrary. Revisit them when there is real traffic data.
