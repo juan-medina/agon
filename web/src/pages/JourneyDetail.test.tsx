@@ -3,10 +3,9 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router";
-import { MOCK_COMMENTS, MOCK_OTHERS_ON_JOURNEY, MY_PLAYER_ID, SESSIONS } from "@/lib/mock";
-import { _reset as resetSessions } from "@/services/sessions";
-import { _reset as resetPlayers } from "@/services/players";
+import { MOCK_COMMENTS, MOCK_OTHERS_ON_JOURNEY, MY_PLAYER_ID, JOURNEYS } from "@/lib/mock";
 import { _reset as resetJourneys } from "@/services/journeys";
+import { _reset as resetPlayers } from "@/services/players";
 import { renderWithProviders } from "@/test/utils";
 import JourneyDetail from "./JourneyDetail";
 
@@ -22,7 +21,6 @@ function renderJourney(id: string) {
 
 beforeEach(() => {
   resetJourneys();
-  resetSessions();
   resetPlayers();
 });
 
@@ -32,10 +30,10 @@ describe("JourneyDetail", () => {
     expect(await screen.findByText("Journey not found.")).toBeInTheDocument();
   });
 
-  it("renders the session game title for a known journey", async () => {
-    const session = SESSIONS.find((s) => s.id === "s1")!;
-    renderJourney(session.id);
-    expect(await screen.findByRole("heading", { name: session.game })).toBeInTheDocument();
+  it("renders the journey game title for a known journey", async () => {
+    const journey = JOURNEYS.find((j) => j.id === "s1")!;
+    renderJourney(journey.id);
+    expect(await screen.findByRole("heading", { name: journey.game })).toBeInTheDocument();
   });
 
   it("liking a journey increments the displayed count by one", async () => {
@@ -67,7 +65,7 @@ describe("JourneyDetail", () => {
     const user = userEvent.setup();
     renderJourney("s1");
     await screen.findByRole("button", { name: "Post" });
-    await user.type(screen.getByPlaceholderText("Add a comment…"), "Great session!");
+    await user.type(screen.getByPlaceholderText("Add a comment…"), "Great journey!");
     expect(screen.getByRole("button", { name: "Post" })).toBeEnabled();
   });
 
@@ -79,7 +77,7 @@ describe("JourneyDetail", () => {
   });
 
   it("shows Follow only for Others players, not Friends on this journey", async () => {
-    renderJourney("s1"); // s1 is my session — no owner Follow button
+    renderJourney("s1"); // s1 is my journey — no owner Follow button
     const buttons = await screen.findAllByRole("button", { name: "Follow" });
     expect(buttons).toHaveLength(MOCK_OTHERS_ON_JOURNEY.length);
   });
@@ -96,7 +94,7 @@ describe("JourneyDetail", () => {
     );
   });
 
-  it("shows Unfollow for an already-followed session owner", async () => {
+  it("shows Unfollow for an already-followed journey owner", async () => {
     // s2 belongs to Alex Torres who is in MY_FOLLOWING
     renderJourney("s2");
     expect(await screen.findByRole("button", { name: "Unfollow" })).toBeInTheDocument();
@@ -111,12 +109,12 @@ describe("JourneyDetail", () => {
     );
   });
 
-  it("delete journey button is visible only for owned sessions", async () => {
+  it("delete journey button is visible only for owned journeys", async () => {
     renderJourney("s1");
     expect(await screen.findByRole("button", { name: "Delete journey" })).toBeInTheDocument();
   });
 
-  it("delete journey button is not shown on another player's session", async () => {
+  it("delete journey button is not shown on another player's journey", async () => {
     renderJourney("s2");
     await screen.findByRole("heading", { name: "Baldur's Gate 3" });
     expect(screen.queryByRole("button", { name: "Delete journey" })).not.toBeInTheDocument();

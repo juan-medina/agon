@@ -4,7 +4,7 @@ Guidance for Claude Code when working in this repository. For architecture and d
 
 ## Project
 
-Agōn is an open social network for gaming sessions built on AT Proto. Three components in one monorepo:
+Agōn is an open social network for gaming journeys built on AT Proto. Three components in one monorepo:
 
 - `api/` — Go API server
 - `agent/` — C# tray agent (Windows, Velopack)
@@ -55,7 +55,7 @@ When writing code that calls external services or downstream dependencies, never
 
 - .NET 9, nullable reference types enabled, warnings as errors
 - No exceptions for control flow. Prefer returning null or a result type for expected failures
-- No UI beyond the system tray icon — any configuration or session management opens the web app via the default browser
+- No UI beyond the system tray icon — any configuration or journey management opens the web app via the default browser
 - The agent registers `agon://` as a custom URL scheme. URL handlers are the only way the web app communicates back to the agent
 - The agent must never hammer the API. Heartbeats are every 10 minutes. Any retry on failure must use exponential backoff. There is no scenario in which the agent sends requests in a tight loop
 - File header on every `.cs` file:
@@ -78,7 +78,7 @@ When writing code that calls external services or downstream dependencies, never
 
 ## AT Proto
 
-Session records are published to AT Proto only when the user explicitly confirms them. Never write to the user's AT Proto repo without an explicit user action. Records are fully denormalised — all game metadata is baked in at publish time.
+Journey records are published to AT Proto only when the user explicitly confirms them. Never write to the user's AT Proto repo without an explicit user action. Records are fully denormalised — all game metadata is baked in at publish time.
 
 ## IGDB
 

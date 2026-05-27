@@ -4,14 +4,14 @@ import { useState } from "react";
 import { useNavigate } from "react-router";
 import { CalendarDays, Check, Clock, Heart, MonitorDown, Plus, Search, Trash2, X } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getUserSessions, getPendingSessions, addSession, confirmPendingSession, dismissPendingSession, toggleLike } from "@/services/sessions";
+import { getUserJourneys, getPendingJourneys, addJourney, confirmPendingJourney, dismissPendingJourney, toggleLike } from "@/services/journeys";
 import { searchGames } from "@/services/games";
-import { formatCommentAge, formatSessionDate } from "@/lib/time";
+import { formatCommentAge, formatJourneyDate } from "@/lib/time";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
-import type { Session, PendingSession, NewSession } from "@/models/session";
+import type { Journey, PendingJourney, NewJourney } from "@/models/journey";
 import type { Game } from "@/models/game";
 
 function GameCover({ game, coverUrl, size }: { game: string; coverUrl?: string; size: "sm" | "md" }) {
@@ -112,11 +112,11 @@ function ClientHint() {
     <div className="mb-6 flex items-start gap-3 rounded-lg border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
       <MonitorDown size={15} className="mt-0.5 shrink-0" />
       <p className="flex-1">
-        Automatically record your game sessions by{" "}
+        Automatically record your game journeys by{" "}
         <a href="#" className="font-medium text-foreground underline-offset-2 hover:underline">
           installing the Windows client
         </a>
-        . Sessions will appear here for you to confirm.
+        . Journeys will appear here for you to confirm.
       </p>
       <button
         onClick={() => setDismissed(true)}
@@ -169,9 +169,9 @@ function AddJourneyForm({ onAdd, onCancel }: { onAdd: () => void; onCancel: () =
   const [calendarOpen, setCalendarOpen] = useState(false);
 
   const addMutation = useMutation({
-    mutationFn: addSession,
+    mutationFn: addJourney,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["sessions", "user"] });
+      queryClient.invalidateQueries({ queryKey: ["journeys", "user"] });
       onAdd();
     },
   });
@@ -189,7 +189,7 @@ function AddJourneyForm({ onAdd, onCancel }: { onAdd: () => void; onCancel: () =
 
   function handleAdd() {
     if (!selected || !parsedDuration) return;
-    const input: NewSession = {
+    const input: NewJourney = {
       game: selected.game,
       coverUrl: selected.coverUrl,
       genres: selected.genres,
@@ -296,43 +296,43 @@ function AddJourneyForm({ onAdd, onCancel }: { onAdd: () => void; onCancel: () =
   );
 }
 
-function gameToGame(session: PendingSession): Game {
+function gameToGame(journey: PendingJourney): Game {
   return {
-    id: session.game,
-    game: session.game,
-    coverUrl: session.coverUrl,
-    genres: session.genres,
+    id: journey.game,
+    game: journey.game,
+    coverUrl: journey.coverUrl,
+    genres: journey.genres,
   };
 }
 
-function PendingCard({ session }: { session: PendingSession }) {
+function PendingCard({ journey }: { journey: PendingJourney }) {
   const queryClient = useQueryClient();
   const [cardState, setCardState] = useState<"collapsed" | "confirming" | "excluding">("collapsed");
-  const [game, setGame] = useState<Game | null>(gameToGame(session));
+  const [game, setGame] = useState<Game | null>(gameToGame(journey));
   const [log, setLog] = useState("");
 
   const dismissMutation = useMutation({
-    mutationFn: () => dismissPendingSession(session.id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["sessions", "pending"] }),
+    mutationFn: () => dismissPendingJourney(journey.id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["pending-journeys"] }),
   });
 
   const confirmMutation = useMutation({
     mutationFn: (input: { game: string; coverUrl?: string; genres: string[]; log?: string }) =>
-      confirmPendingSession(session.id, input),
+      confirmPendingJourney(journey.id, input),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["sessions", "pending"] });
-      queryClient.invalidateQueries({ queryKey: ["sessions", "user"] });
+      queryClient.invalidateQueries({ queryKey: ["pending-journeys"] });
+      queryClient.invalidateQueries({ queryKey: ["journeys", "user"] });
     },
   });
 
   function openConfirm(searchMode = false) {
-    setGame(searchMode ? null : gameToGame(session));
+    setGame(searchMode ? null : gameToGame(journey));
     setCardState("confirming");
   }
 
   function cancelConfirm() {
     setCardState("collapsed");
-    setGame(gameToGame(session));
+    setGame(gameToGame(journey));
     setLog("");
   }
 
@@ -354,9 +354,9 @@ function PendingCard({ session }: { session: PendingSession }) {
         </div>
         <div className="mb-1 flex items-center gap-1 text-xs text-muted-foreground">
           <Clock size={12} />
-          <span>{session.duration}</span>
+          <span>{journey.duration}</span>
           <span className="mx-1 opacity-40">·</span>
-          <span>ended {formatCommentAge(session.endedAt)}</span>
+          <span>ended {formatCommentAge(journey.endedAt)}</span>
         </div>
         <textarea
           value={log}
@@ -385,8 +385,8 @@ function PendingCard({ session }: { session: PendingSession }) {
   if (cardState === "excluding") {
     return (
       <div className="rounded-lg border border-border bg-card p-4">
-        <p className="text-sm font-medium">Exclude {session.exeName} from detection?</p>
-        <p className="mt-1 text-xs text-muted-foreground">Future sessions from this executable will be ignored.</p>
+        <p className="text-sm font-medium">Exclude {journey.exeName} from detection?</p>
+        <p className="mt-1 text-xs text-muted-foreground">Future journeys from this executable will be ignored.</p>
         <div className="mt-4 flex items-center justify-end gap-2">
           <button onClick={() => setCardState("collapsed")} className="rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
             Cancel
@@ -405,42 +405,42 @@ function PendingCard({ session }: { session: PendingSession }) {
   return (
     <div className="rounded-lg border border-border bg-card p-4">
       <div className="flex gap-4">
-        <GameCover game={session.game} coverUrl={session.coverUrl} size="md" />
+        <GameCover game={journey.game} coverUrl={journey.coverUrl} size="md" />
         <div className="min-w-0 flex-1">
           <div className="mb-1 flex flex-wrap items-baseline gap-x-2 gap-y-1">
-            {session.game ? (
-              <span className="font-bold">{session.game}</span>
+            {journey.game ? (
+              <span className="font-bold">{journey.game}</span>
             ) : (
               <span className="italic text-muted-foreground">Unknown Game</span>
             )}
             <button onClick={() => openConfirm(true)} className="text-xs text-primary underline-offset-2 hover:underline">
               Change
             </button>
-            {session.game && (
+            {journey.game && (
               <div className="flex flex-wrap gap-1">
-                {session.genres.map((g) => (
+                {journey.genres.map((g) => (
                   <span key={g} className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">{g}</span>
                 ))}
               </div>
             )}
           </div>
-          {(session.exeName || session.windowTitle) && (
+          {(journey.exeName || journey.windowTitle) && (
             <div className="mb-1 text-xs text-muted-foreground">
-              {session.exeName}
-              {session.exeName && session.windowTitle && " · "}
-              {session.windowTitle && `"${session.windowTitle}"`}
+              {journey.exeName}
+              {journey.exeName && journey.windowTitle && " · "}
+              {journey.windowTitle && `"${journey.windowTitle}"`}
             </div>
           )}
           <div className="flex items-center gap-1 text-xs text-muted-foreground">
             <Clock size={12} />
-            <span>{session.duration}</span>
+            <span>{journey.duration}</span>
             <span className="mx-1 opacity-40">·</span>
-            <span>ended {formatCommentAge(session.endedAt)}</span>
+            <span>ended {formatCommentAge(journey.endedAt)}</span>
           </div>
         </div>
       </div>
       <div className="mt-3 flex items-center justify-end gap-2 border-t border-border pt-3">
-        {session.exeName && (
+        {journey.exeName && (
           <button onClick={() => setCardState("excluding")} className="rounded-md px-2 py-1.5 text-sm text-muted-foreground/70 transition-colors hover:text-muted-foreground">
             Never detect this
           </button>
@@ -458,53 +458,53 @@ function PendingCard({ session }: { session: PendingSession }) {
   );
 }
 
-function HistoryCard({ session }: { session: Session }) {
+function HistoryCard({ journey }: { journey: Journey }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
   const likeMutation = useMutation({
     mutationFn: toggleLike,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["sessions", "user"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["journeys", "user"] }),
   });
 
-  const likeCount = session.likes + (session.liked ? 1 : 0);
+  const likeCount = journey.likes + (journey.liked ? 1 : 0);
 
   return (
     <article
       className="flex cursor-pointer gap-4 rounded-lg border border-border bg-card p-4 transition-colors hover:bg-accent/5"
-      onClick={() => navigate(`/journey/${session.id}`)}
+      onClick={() => navigate(`/journey/${journey.id}`)}
     >
-      <GameCover game={session.game} coverUrl={session.coverUrl} size="md" />
+      <GameCover game={journey.game} coverUrl={journey.coverUrl} size="md" />
       <div className="min-w-0 flex-1">
         <div className="mb-1">
-          <span className="text-xs text-muted-foreground">{formatSessionDate(session.playedAt)}</span>
+          <span className="text-xs text-muted-foreground">{formatJourneyDate(journey.playedAt)}</span>
         </div>
         <div className="mb-1 flex flex-wrap items-baseline gap-x-2 gap-y-1">
-          <span className="font-bold">{session.game}</span>
+          <span className="font-bold">{journey.game}</span>
           <div className="flex flex-wrap gap-1">
-            {session.genres.map((g) => (
+            {journey.genres.map((g) => (
               <span key={g} className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">{g}</span>
             ))}
           </div>
         </div>
         <div className="mb-2 flex items-center gap-1 text-xs text-muted-foreground">
           <Clock size={12} />
-          <span>{session.duration}</span>
+          <span>{journey.duration}</span>
         </div>
-        {session.log && (
-          <p className="mb-2 text-sm italic text-muted-foreground">&ldquo;{session.log}&rdquo;</p>
+        {journey.log && (
+          <p className="mb-2 text-sm italic text-muted-foreground">&ldquo;{journey.log}&rdquo;</p>
         )}
         <button
-          onClick={(e) => { e.stopPropagation(); likeMutation.mutate(session.id); }}
+          onClick={(e) => { e.stopPropagation(); likeMutation.mutate(journey.id); }}
           className="flex items-center gap-1.5 transition-colors"
-          aria-label={session.liked ? "Unlike" : "Like"}
+          aria-label={journey.liked ? "Unlike" : "Like"}
         >
           <Heart
             size={15}
-            className={session.liked ? "fill-rose-500 text-rose-500" : "text-muted-foreground hover:text-rose-400"}
+            className={journey.liked ? "fill-rose-500 text-rose-500" : "text-muted-foreground hover:text-rose-400"}
           />
           {likeCount > 0 && (
-            <span className={`text-xs ${session.liked ? "text-rose-500" : "text-muted-foreground"}`}>{likeCount}</span>
+            <span className={`text-xs ${journey.liked ? "text-rose-500" : "text-muted-foreground"}`}>{likeCount}</span>
           )}
         </button>
       </div>
@@ -515,8 +515,8 @@ function HistoryCard({ session }: { session: Session }) {
 export default function Journeys() {
   const [adding, setAdding] = useState(false);
 
-  const { data: pending = [] } = useQuery({ queryKey: ["sessions", "pending"], queryFn: getPendingSessions });
-  const { data: history = [] } = useQuery({ queryKey: ["sessions", "user"], queryFn: getUserSessions });
+  const { data: pending = [] } = useQuery({ queryKey: ["pending-journeys"], queryFn: getPendingJourneys });
+  const { data: history = [] } = useQuery({ queryKey: ["journeys", "user"], queryFn: getUserJourneys });
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -546,8 +546,8 @@ export default function Journeys() {
             </span>
           </div>
           <div className="flex flex-col gap-3">
-            {pending.map((s) => (
-              <PendingCard key={s.id} session={s} />
+            {pending.map((j) => (
+              <PendingCard key={j.id} journey={j} />
             ))}
           </div>
         </section>
@@ -557,7 +557,7 @@ export default function Journeys() {
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">History</h2>
         {history.length > 0 ? (
           <div className="flex flex-col gap-3">
-            {history.map((s) => <HistoryCard key={s.id} session={s} />)}
+            {history.map((j) => <HistoryCard key={j.id} journey={j} />)}
           </div>
         ) : (
           <p className="text-sm text-muted-foreground">No confirmed journeys yet.</p>

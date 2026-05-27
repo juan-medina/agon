@@ -3,7 +3,7 @@
 
 import type { Player } from "./player";
 
-export type Session = {
+export type Journey = {
   id: string;
   player: Player;
   game: string;
@@ -16,7 +16,7 @@ export type Session = {
   liked: boolean;
 };
 
-export type PendingSession = {
+export type PendingJourney = {
   id: string;
   game: string;
   coverUrl?: string;
@@ -27,7 +27,7 @@ export type PendingSession = {
   windowTitle?: string;
 };
 
-export type NewSession = {
+export type NewJourney = {
   game: string;
   coverUrl?: string;
   genres: string[];

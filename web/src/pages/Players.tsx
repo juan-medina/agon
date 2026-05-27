@@ -7,7 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getGameActivity } from "@/services/games";
 import { avatarSrc, playerHref } from "@/lib/display";
 import { MY_PLAYER_ID } from "@/services/auth";
-import { formatSessionDate } from "@/lib/time";
+import { formatJourneyDate } from "@/lib/time";
 import type { GameActivity, JourneyEntry } from "@/models";
 
 function GameCover({ game, coverUrl }: { game: string; coverUrl?: string }) {
@@ -49,7 +49,7 @@ function JourneyRow({ entry }: { entry: JourneyEntry }) {
       <div className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
         <Clock size={11} />
         <span>{entry.duration}</span>
-        <span className="ml-1.5">{formatSessionDate(entry.playedAt)}</span>
+        <span className="ml-1.5">{formatJourneyDate(entry.playedAt)}</span>
       </div>
     </div>
   );

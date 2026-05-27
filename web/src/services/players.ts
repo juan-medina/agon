@@ -2,21 +2,21 @@
 // SPDX-License-Identifier: MIT
 
 import type { Player } from "@/models/player";
-import type { Session } from "@/models/session";
+import type { Journey } from "@/models/journey";
 import type { GameActivity } from "@/models/game";
 import {
   PLAYERS,
-  SESSIONS,
+  JOURNEYS,
   MY_FOLLOWING,
   MY_FOLLOWERS,
   MY_PLAYER,
   MOCK_FOLLOW_LISTS,
   MOCK_GAME_ACTIVITY,
 } from "@/lib/mock";
-import { likedIds } from "./sessions";
+import { likedIds } from "./journeys";
 
 const _players: Player[] = [...PLAYERS];
-const _sessions: Session[] = [...SESSIONS];
+const _journeys: Journey[] = [...JOURNEYS];
 const _myFollowing: Player[] = [...MY_FOLLOWING];
 const _myFollowers: Player[] = [...MY_FOLLOWERS];
 const _myPlayerId: string = MY_PLAYER.id;
@@ -32,16 +32,16 @@ export function isFollowingHandle(handle: string): boolean {
 export async function getPlayer(handle: string): Promise<Player | undefined> {
   const fromPlayers = _players.find((p) => p.handle === handle);
   if (fromPlayers) return fromPlayers;
-  const fromSessions = _sessions.find((s) => s.player.handle === handle)?.player;
-  if (fromSessions) return fromSessions;
+  const fromJourneys = _journeys.find((j) => j.player.handle === handle)?.player;
+  if (fromJourneys) return fromJourneys;
   return _gameActivity.flatMap((g) => g.entries)
     .find((e) => e.player.handle === handle)?.player;
 }
 
-export async function getPlayerSessions(handle: string): Promise<Session[]> {
-  return _sessions
-    .filter((s) => s.player.handle === handle)
-    .map((s) => ({ ...s, liked: likedIds.has(s.id) }));
+export async function getPlayerJourneys(handle: string): Promise<Journey[]> {
+  return _journeys
+    .filter((j) => j.player.handle === handle)
+    .map((j) => ({ ...j, liked: likedIds.has(j.id) }));
 }
 
 export async function getFollowers(playerId: string): Promise<Player[]> {

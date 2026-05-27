@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import type { Player } from "@/models/player";
-import type { Session, PendingSession } from "@/models/session";
+import type { Journey, PendingJourney } from "@/models/journey";
 import type { Echo } from "@/models/echo";
 import type { Game, GameActivity, Comment, JourneyPlayer } from "@/models/game";
 import type { Exclusion, GameHint } from "@/models/settings";
@@ -62,7 +62,7 @@ function minsAgo(n: number): Date {
   return new Date(Date.now() - n * 60 * 1000);
 }
 
-export const SESSIONS: Session[] = [
+export const JOURNEYS: Journey[] = [
   {
     id: "s1", player: PLAYERS[0], game: "Elden Ring",
     coverUrl: coverUrl("Elden Ring"),
@@ -259,7 +259,7 @@ export const GAME_LIBRARY: Game[] = [
   { id: "g12", game: "Monster Hunter: World", coverUrl: "https://cdn.akamai.steamstatic.com/steam/apps/582010/library_600x900.jpg", genres: ["Action", "RPG", "Co-op"] },
 ];
 
-export const MOCK_PENDING_SESSIONS: PendingSession[] = [
+export const MOCK_PENDING_JOURNEYS: PendingJourney[] = [
   {
     id: "ps1", game: "Cyberpunk 2077",
     coverUrl: coverUrl("Cyberpunk 2077"),

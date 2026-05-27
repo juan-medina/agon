@@ -3,8 +3,8 @@
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
-import { MOCK_PENDING_SESSIONS } from "@/lib/mock";
-import { _reset as resetSessions } from "@/services/sessions";
+import { MOCK_PENDING_JOURNEYS } from "@/lib/mock";
+import { _reset as resetJourneys } from "@/services/journeys";
 import { renderWithProviders } from "@/test/utils";
 import Journeys from "./Journeys";
 
@@ -17,14 +17,14 @@ function renderJourneys() {
 }
 
 beforeEach(() => {
-  resetSessions();
+  resetJourneys();
 });
 
 describe("Journeys — pending actions", () => {
-  it("discarding a pending session removes it from the list", async () => {
+  it("discarding a pending journey removes it from the list", async () => {
     const user = userEvent.setup();
     renderJourneys();
-    const first = MOCK_PENDING_SESSIONS[0];
+    const first = MOCK_PENDING_JOURNEYS[0];
     const [firstDiscard] = await screen.findAllByRole("button", { name: "Discard" });
     await user.click(firstDiscard);
     expect(screen.queryByText(first.game)).not.toBeInTheDocument();
@@ -45,21 +45,21 @@ describe("Journeys — pending actions", () => {
     await user.click(firstConfirm);
     await user.click(screen.getByRole("button", { name: "Cancel" }));
     expect(screen.getAllByRole("button", { name: "Confirm" })).toHaveLength(
-      MOCK_PENDING_SESSIONS.length,
+      MOCK_PENDING_JOURNEYS.length,
     );
   });
 
-  it("publishing from the log form removes the session from pending and adds it to history", async () => {
+  it("publishing from the log form removes the journey from pending and adds it to history", async () => {
     const user = userEvent.setup();
     renderJourneys();
     const [firstConfirm] = await screen.findAllByRole("button", { name: "Confirm" });
     await user.click(firstConfirm);
     await user.click(screen.getByRole("button", { name: "Publish journey" }));
     expect(await screen.findAllByRole("button", { name: "Confirm" })).toHaveLength(
-      MOCK_PENDING_SESSIONS.length - 1,
+      MOCK_PENDING_JOURNEYS.length - 1,
     );
     expect(screen.getAllByRole("button", { name: "Discard" })).toHaveLength(
-      MOCK_PENDING_SESSIONS.length - 1,
+      MOCK_PENDING_JOURNEYS.length - 1,
     );
   });
 
@@ -84,11 +84,11 @@ describe("Journeys — pending actions", () => {
     expect(screen.queryByPlaceholderText("Search for a game…")).not.toBeInTheDocument();
   });
 
-  it("pending section disappears when all sessions are dismissed", async () => {
+  it("pending section disappears when all journeys are dismissed", async () => {
     const user = userEvent.setup();
     renderJourneys();
     await screen.findAllByRole("button", { name: "Discard" });
-    for (const _ of MOCK_PENDING_SESSIONS) {
+    for (const _ of MOCK_PENDING_JOURNEYS) {
       await user.click(screen.getAllByRole("button", { name: "Discard" })[0]);
     }
     expect(screen.queryByText("Pending")).not.toBeInTheDocument();
@@ -96,9 +96,9 @@ describe("Journeys — pending actions", () => {
 
   it("Never detect this button appears only when exeName is present", async () => {
     renderJourneys();
-    const sessionsWithExe = MOCK_PENDING_SESSIONS.filter((s) => s.exeName);
+    const journeysWithExe = MOCK_PENDING_JOURNEYS.filter((j) => j.exeName);
     const buttons = await screen.findAllByRole("button", { name: "Never detect this" });
-    expect(buttons).toHaveLength(sessionsWithExe.length);
+    expect(buttons).toHaveLength(journeysWithExe.length);
   });
 
   it("clicking Never detect this shows inline confirmation", async () => {
@@ -108,10 +108,10 @@ describe("Journeys — pending actions", () => {
     await user.click(firstNeverDetect);
     expect(screen.getByText("Exclude cyberpunk2077.exe from detection?")).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: "Discard" })).toHaveLength(
-      MOCK_PENDING_SESSIONS.length - 1,
+      MOCK_PENDING_JOURNEYS.length - 1,
     );
     expect(screen.getAllByRole("button", { name: "Confirm" })).toHaveLength(
-      MOCK_PENDING_SESSIONS.length - 1,
+      MOCK_PENDING_JOURNEYS.length - 1,
     );
   });
 
@@ -122,10 +122,10 @@ describe("Journeys — pending actions", () => {
     await user.click(firstNeverDetect);
     await user.click(screen.getByRole("button", { name: "Cancel" }));
     expect(screen.getAllByRole("button", { name: "Discard" })).toHaveLength(
-      MOCK_PENDING_SESSIONS.length,
+      MOCK_PENDING_JOURNEYS.length,
     );
     expect(screen.getAllByRole("button", { name: "Confirm" })).toHaveLength(
-      MOCK_PENDING_SESSIONS.length,
+      MOCK_PENDING_JOURNEYS.length,
     );
   });
 
@@ -136,11 +136,11 @@ describe("Journeys — pending actions", () => {
     await user.click(firstNeverDetect);
     await user.click(screen.getByRole("button", { name: "Exclude" }));
     expect(await screen.findAllByRole("button", { name: "Discard" })).toHaveLength(
-      MOCK_PENDING_SESSIONS.length - 1,
+      MOCK_PENDING_JOURNEYS.length - 1,
     );
   });
 
-  it("unknown game session shows Unknown Game label", async () => {
+  it("unknown game journey shows Unknown Game label", async () => {
     renderJourneys();
     expect(await screen.findByText("Unknown Game")).toBeInTheDocument();
   });

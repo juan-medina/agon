@@ -5,12 +5,12 @@ import { Link, useNavigate, useParams } from "react-router";
 import { Check, ChevronLeft, Clock, Heart, Trash2, UserPlus } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getJourney, getComments, getLikers, getJourneyPlayers, postComment, deleteJourney, deleteComment } from "@/services/journeys";
-import { toggleLike } from "@/services/sessions";
+import { toggleLike } from "@/services/journeys";
 import { toggleFollow, isFollowingHandle } from "@/services/players";
 import { MY_PLAYER_ID } from "@/services/auth";
-import { avatarSrc, initials, playerHref } from "@/lib/display";
+import { avatarSrc, playerHref } from "@/lib/display";
 import FollowListModal from "@/components/FollowListModal";
-import { formatCommentAge, formatSessionDate } from "@/lib/time";
+import { formatCommentAge, formatJourneyDate } from "@/lib/time";
 import type { Comment, JourneyPlayer, Player } from "@/models";
 
 function PlayerAvatar({ player, size = "md" }: { player: Player; size?: "sm" | "md" | "lg" }) {
@@ -24,11 +24,11 @@ function PlayerAvatar({ player, size = "md" }: { player: Player; size?: "sm" | "
   );
 }
 
-function JourneyPlayerRow({ entry, sessionId }: { entry: JourneyPlayer; sessionId: string }) {
+function JourneyPlayerRow({ entry, journeyId }: { entry: JourneyPlayer; journeyId: string }) {
   const queryClient = useQueryClient();
   const followMutation = useMutation({
     mutationFn: () => toggleFollow(entry.player.handle),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["journey", sessionId, "players"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["journey", journeyId, "players"] }),
   });
   const following = entry.isFollowing;
 
@@ -45,7 +45,7 @@ function JourneyPlayerRow({ entry, sessionId }: { entry: JourneyPlayer; sessionI
             <Clock size={11} />
             <span>{entry.duration}</span>
             <span className="mx-1 opacity-40">·</span>
-            <span>{formatSessionDate(entry.playedAt)}</span>
+            <span>{formatJourneyDate(entry.playedAt)}</span>
           </div>
         </div>
       </Link>
@@ -75,12 +75,12 @@ function JourneyPlayerRow({ entry, sessionId }: { entry: JourneyPlayer; sessionI
   );
 }
 
-function CommentRow({ comment, sessionId }: { comment: Comment; sessionId: string }) {
+function CommentRow({ comment, journeyId }: { comment: Comment; journeyId: string }) {
   const queryClient = useQueryClient();
   const [confirming, setConfirming] = useState(false);
   const deleteCommentMutation = useMutation({
-    mutationFn: () => deleteComment(sessionId, comment.id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["journey", sessionId, "comments"] }),
+    mutationFn: () => deleteComment(journeyId, comment.id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["journey", journeyId, "comments"] }),
   });
 
   return (
@@ -134,7 +134,7 @@ export default function JourneyDetail() {
   const [showLikers, setShowLikers] = useState(false);
   const [confirmDeleteJourney, setConfirmDeleteJourney] = useState(false);
 
-  const { data: session } = useQuery({
+  const { data: journey } = useQuery({
     queryKey: ["journey", id],
     queryFn: () => getJourney(id!),
     enabled: !!id,
@@ -158,12 +158,12 @@ export default function JourneyDetail() {
     enabled: !!id,
   });
 
-  const isOwner = session?.player.id === MY_PLAYER_ID;
+  const isOwner = journey?.player.id === MY_PLAYER_ID;
 
   const { data: ownerIsFollowed = false } = useQuery({
-    queryKey: ["following", session?.player.handle],
-    queryFn: () => isFollowingHandle(session!.player.handle),
-    enabled: !!session && !isOwner,
+    queryKey: ["following", journey?.player.handle],
+    queryFn: () => isFollowingHandle(journey!.player.handle),
+    enabled: !!journey && !isOwner,
   });
 
   const likeMutation = useMutation({
@@ -172,8 +172,8 @@ export default function JourneyDetail() {
   });
 
   const followOwnerMutation = useMutation({
-    mutationFn: () => toggleFollow(session!.player.handle),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["following", session?.player.handle] }),
+    mutationFn: () => toggleFollow(journey!.player.handle),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["following", journey?.player.handle] }),
   });
 
   const postCommentMutation = useMutation({
@@ -189,7 +189,7 @@ export default function JourneyDetail() {
     onSuccess: () => navigate("/journeys"),
   });
 
-  if (!session) {
+  if (!journey) {
     return (
       <div className="mx-auto max-w-2xl pt-8 text-center text-muted-foreground">
         Journey not found.
@@ -197,7 +197,7 @@ export default function JourneyDetail() {
     );
   }
 
-  const likeCount = session.likes + (session.liked ? 1 : 0);
+  const likeCount = journey.likes + (journey.liked ? 1 : 0);
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -211,13 +211,13 @@ export default function JourneyDetail() {
           <ChevronLeft size={20} />
         </button>
         <Link
-          to={playerHref(session.player, MY_PLAYER_ID)}
+          to={playerHref(journey.player, MY_PLAYER_ID)}
           className="flex items-center gap-2"
         >
-          <PlayerAvatar player={session.player} size="sm" />
-          <span className="text-sm font-semibold">{session.player.name}</span>
+          <PlayerAvatar player={journey.player} size="sm" />
+          <span className="text-sm font-semibold">{journey.player.name}</span>
         </Link>
-        <span className="text-xs text-muted-foreground">@{session.player.handle}</span>
+        <span className="text-xs text-muted-foreground">@{journey.player.handle}</span>
         {!isOwner && (
           <button
             onClick={() => followOwnerMutation.mutate()}
@@ -259,7 +259,7 @@ export default function JourneyDetail() {
           </div>
         ) : (
           <>
-            <span className="ml-auto text-xs text-muted-foreground">{formatSessionDate(session.playedAt)}</span>
+            <span className="ml-auto text-xs text-muted-foreground">{formatJourneyDate(journey.playedAt)}</span>
             {isOwner && (
               <button
                 onClick={() => setConfirmDeleteJourney(true)}
@@ -277,15 +277,15 @@ export default function JourneyDetail() {
       <div className="rounded-lg border border-border bg-card p-4">
         <div className="flex gap-4">
           <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-md bg-slate-800">
-            {session.coverUrl
-              ? <img src={session.coverUrl} alt={session.game} className="absolute inset-0 h-full w-full object-cover" />
-              : <span className="absolute inset-0 flex items-center justify-center text-4xl font-bold text-slate-300">{session.game[0]}</span>
+            {journey.coverUrl
+              ? <img src={journey.coverUrl} alt={journey.game} className="absolute inset-0 h-full w-full object-cover" />
+              : <span className="absolute inset-0 flex items-center justify-center text-4xl font-bold text-slate-300">{journey.game[0]}</span>
             }
           </div>
           <div className="min-w-0 flex-1">
-            <h1 className="mb-1.5 text-xl font-bold">{session.game}</h1>
+            <h1 className="mb-1.5 text-xl font-bold">{journey.game}</h1>
             <div className="mb-2 flex flex-wrap gap-1">
-              {session.genres.map((g) => (
+              {journey.genres.map((g) => (
                 <span
                   key={g}
                   className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground"
@@ -296,14 +296,14 @@ export default function JourneyDetail() {
             </div>
             <div className="flex items-center gap-1 text-sm text-muted-foreground">
               <Clock size={13} />
-              <span>{session.duration}</span>
+              <span>{journey.duration}</span>
             </div>
           </div>
         </div>
 
-        {session.log && (
+        {journey.log && (
           <blockquote className="mt-4 border-l-2 border-border pl-4 text-sm italic text-muted-foreground">
-            &ldquo;{session.log}&rdquo;
+            &ldquo;{journey.log}&rdquo;
           </blockquote>
         )}
       </div>
@@ -312,15 +312,15 @@ export default function JourneyDetail() {
       <div className="mt-4 rounded-lg border border-border bg-card p-4">
         <div className="flex items-center gap-4">
           <button
-            onClick={() => likeMutation.mutate(session.id)}
+            onClick={() => likeMutation.mutate(journey.id)}
             className="flex items-center gap-2 transition-colors"
-            aria-label={session.liked ? "Unlike" : "Like"}
+            aria-label={journey.liked ? "Unlike" : "Like"}
           >
             <Heart
               size={22}
-              className={session.liked ? "fill-rose-500 text-rose-500" : "text-muted-foreground hover:text-rose-400"}
+              className={journey.liked ? "fill-rose-500 text-rose-500" : "text-muted-foreground hover:text-rose-400"}
             />
-            <span className={`text-sm font-medium ${session.liked ? "text-rose-500" : "text-muted-foreground"}`}>
+            <span className={`text-sm font-medium ${journey.liked ? "text-rose-500" : "text-muted-foreground"}`}>
               {likeCount}
             </span>
           </button>
@@ -352,7 +352,7 @@ export default function JourneyDetail() {
         </div>
         <div className="divide-y divide-border px-4">
           {comments.map((c) => (
-            <CommentRow key={c.id} comment={c} sessionId={id!} />
+            <CommentRow key={c.id} comment={c} journeyId={id!} />
           ))}
         </div>
         <div className="border-t border-border p-4">
@@ -388,7 +388,7 @@ export default function JourneyDetail() {
             </p>
             <div className="divide-y divide-border">
               {(journeyPlayers?.friends ?? []).map((entry) => (
-                <JourneyPlayerRow key={entry.player.id} entry={entry} sessionId={id!} />
+                <JourneyPlayerRow key={entry.player.id} entry={entry} journeyId={id!} />
               ))}
             </div>
           </div>
@@ -401,7 +401,7 @@ export default function JourneyDetail() {
             </p>
             <div className="divide-y divide-border">
               {(journeyPlayers?.others ?? []).map((entry) => (
-                <JourneyPlayerRow key={entry.player.id} entry={entry} sessionId={id!} />
+                <JourneyPlayerRow key={entry.player.id} entry={entry} journeyId={id!} />
               ))}
             </div>
           </div>

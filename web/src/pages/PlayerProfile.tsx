@@ -4,12 +4,12 @@ import { useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { Check, ChevronLeft, Clock, Heart, UserPlus } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getPlayer, getPlayerSessions, getFollowers, getFollowing, toggleFollow } from "@/services/players";
-import { toggleLike } from "@/services/sessions";
+import { getPlayer, getPlayerJourneys, getFollowers, getFollowing, toggleFollow } from "@/services/players";
+import { toggleLike } from "@/services/journeys";
 import { MY_PLAYER_ID } from "@/services/auth";
 import { avatarSrc, initials } from "@/lib/display";
 import FollowListModal from "@/components/FollowListModal";
-import { formatSessionDate } from "@/lib/time";
+import { formatJourneyDate } from "@/lib/time";
 import type { Player } from "@/models";
 
 export default function PlayerProfile() {
@@ -23,9 +23,9 @@ export default function PlayerProfile() {
     enabled: !!handle,
   });
 
-  const { data: sessions = [] } = useQuery({
-    queryKey: ["sessions", "user", handle],
-    queryFn: () => getPlayerSessions(handle!),
+  const { data: journeys = [] } = useQuery({
+    queryKey: ["journeys", "player", handle],
+    queryFn: () => getPlayerJourneys(handle!),
     enabled: !!handle,
   });
 
@@ -60,7 +60,7 @@ export default function PlayerProfile() {
 
   const likeMutation = useMutation({
     mutationFn: toggleLike,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["sessions", "user", handle] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["journeys", "player", handle] }),
   });
 
   const [followList, setFollowList] = useState<{ title: string; players: Player[] } | null>(null);
@@ -144,7 +144,7 @@ export default function PlayerProfile() {
       {(player.followers !== undefined || player.following !== undefined) && (
         <div className="mb-6 grid grid-cols-3 divide-x divide-border rounded-lg border border-border bg-card">
           {[
-            { label: "Journeys", value: sessions.length, onClick: undefined },
+            { label: "Journeys", value: journeys.length, onClick: undefined },
             {
               label: "Followers",
               value: player.followers ?? followers.length,
@@ -180,27 +180,27 @@ export default function PlayerProfile() {
         Recent journeys
       </h2>
 
-      {sessions.length > 0 ? (
+      {journeys.length > 0 ? (
         <div className="flex flex-col gap-3">
-          {sessions.map((session) => {
-            const likeCount = session.likes + (session.liked ? 1 : 0);
+          {journeys.map((journey) => {
+            const likeCount = journey.likes + (journey.liked ? 1 : 0);
             return (
               <article
-                key={session.id}
+                key={journey.id}
                 className="flex cursor-pointer gap-4 rounded-lg border border-border bg-card p-4 transition-colors hover:bg-accent/5"
-                onClick={() => navigate(`/journey/${session.id}`)}
+                onClick={() => navigate(`/journey/${journey.id}`)}
               >
                 <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-md bg-slate-800">
-                  {session.coverUrl
-                    ? <img src={session.coverUrl} alt={session.game} className="absolute inset-0 h-full w-full object-cover" />
-                    : <span className="absolute inset-0 flex items-center justify-center text-2xl font-bold text-slate-300">{session.game[0]}</span>
+                  {journey.coverUrl
+                    ? <img src={journey.coverUrl} alt={journey.game} className="absolute inset-0 h-full w-full object-cover" />
+                    : <span className="absolute inset-0 flex items-center justify-center text-2xl font-bold text-slate-300">{journey.game[0]}</span>
                   }
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="mb-1 flex items-baseline gap-2">
-                    <span className="font-bold">{session.game}</span>
+                    <span className="font-bold">{journey.game}</span>
                     <div className="flex flex-wrap gap-1">
-                      {session.genres.map((g) => (
+                      {journey.genres.map((g) => (
                         <span
                           key={g}
                           className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground"
@@ -212,30 +212,30 @@ export default function PlayerProfile() {
                   </div>
                   <div className="mb-2 flex items-center gap-1 text-xs text-muted-foreground">
                     <Clock size={12} />
-                    <span>{session.duration}</span>
-                    <span className="ml-1.5">{formatSessionDate(session.playedAt)}</span>
+                    <span>{journey.duration}</span>
+                    <span className="ml-1.5">{formatJourneyDate(journey.playedAt)}</span>
                   </div>
-                  {session.log && (
+                  {journey.log && (
                     <p className="mb-2 text-sm italic text-muted-foreground">
-                      &ldquo;{session.log}&rdquo;
+                      &ldquo;{journey.log}&rdquo;
                     </p>
                   )}
                   <button
-                    onClick={(e) => { e.stopPropagation(); likeMutation.mutate(session.id); }}
-                    aria-label={session.liked ? "Unlike" : "Like"}
+                    onClick={(e) => { e.stopPropagation(); likeMutation.mutate(journey.id); }}
+                    aria-label={journey.liked ? "Unlike" : "Like"}
                     className="flex items-center gap-1.5 transition-colors"
                   >
                     <Heart
                       size={15}
                       className={
-                        session.liked
+                        journey.liked
                           ? "fill-rose-500 text-rose-500"
                           : "text-muted-foreground hover:text-rose-400"
                       }
                     />
                     {likeCount > 0 && (
                       <span
-                        className={`text-xs ${session.liked ? "text-rose-500" : "text-muted-foreground"}`}
+                        className={`text-xs ${journey.liked ? "text-rose-500" : "text-muted-foreground"}`}
                       >
                         {likeCount}
                       </span>

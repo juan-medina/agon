@@ -3,7 +3,7 @@
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router";
-import { MOCK_FRIENDS_ON_JOURNEY, MY_PLAYER_ID, PLAYERS, SESSIONS } from "@/lib/mock";
+import { MOCK_FRIENDS_ON_JOURNEY, MY_PLAYER_ID, PLAYERS, JOURNEYS } from "@/lib/mock";
 import { _reset as resetPlayers } from "@/services/players";
 import { renderWithProviders } from "@/test/utils";
 import PlayerProfile from "./PlayerProfile";
@@ -19,10 +19,10 @@ function renderProfile(handle: string) {
 }
 
 const followed = MOCK_FRIENDS_ON_JOURNEY[0].player;
-const unfollowed = SESSIONS.find(
-  (s) =>
-    s.player.id !== MY_PLAYER_ID &&
-    !MOCK_FRIENDS_ON_JOURNEY.some((jp) => jp.player.handle === s.player.handle),
+const unfollowed = JOURNEYS.find(
+  (j) =>
+    j.player.id !== MY_PLAYER_ID &&
+    !MOCK_FRIENDS_ON_JOURNEY.some((jp) => jp.player.handle === j.player.handle),
 )!.player;
 
 beforeEach(() => {
@@ -38,9 +38,9 @@ describe("PlayerProfile", () => {
   it("shows the player's sessions on their profile", async () => {
     const player = PLAYERS[1]; // Alex Torres — has s2 and s6
     renderProfile(player.handle);
-    const sessions = SESSIONS.filter((s) => s.player.handle === player.handle);
-    for (const s of sessions) {
-      expect(await screen.findByText(s.game)).toBeInTheDocument();
+    const journeys = JOURNEYS.filter((j) => j.player.handle === player.handle);
+    for (const j of journeys) {
+      expect(await screen.findByText(j.game)).toBeInTheDocument();
     }
   });
 

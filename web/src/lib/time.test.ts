@@ -1,35 +1,35 @@
 // SPDX-FileCopyrightText: 2026 Juan Medina
 // SPDX-License-Identifier: MIT
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { formatCommentAge, formatSessionDate } from "./time";
+import { formatCommentAge, formatJourneyDate } from "./time";
 
 // May 22, 2026 noon local — a known fixed point for all time tests
 const FIXED_NOW = new Date(2026, 4, 22, 12, 0, 0);
 
-describe("formatSessionDate", () => {
+describe("formatJourneyDate", () => {
   beforeEach(() => vi.useFakeTimers({ now: FIXED_NOW }));
   afterEach(() => vi.useRealTimers());
 
   it("returns Today for same calendar day", () => {
-    expect(formatSessionDate(new Date(2026, 4, 22, 8, 0, 0))).toBe("Today");
+    expect(formatJourneyDate(new Date(2026, 4, 22, 8, 0, 0))).toBe("Today");
   });
 
   it("returns Yesterday for the previous calendar day", () => {
-    expect(formatSessionDate(new Date(2026, 4, 21, 20, 0, 0))).toBe("Yesterday");
+    expect(formatJourneyDate(new Date(2026, 4, 21, 20, 0, 0))).toBe("Yesterday");
   });
 
   it("returns a weekday name for 2–6 days ago", () => {
-    const result = formatSessionDate(new Date(2026, 4, 18, 12, 0, 0)); // 4 days ago
+    const result = formatJourneyDate(new Date(2026, 4, 18, 12, 0, 0)); // 4 days ago
     const weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
     expect(weekdays).toContain(result);
   });
 
   it("returns short month+day for same year beyond 7 days", () => {
-    expect(formatSessionDate(new Date(2026, 4, 10, 12, 0, 0))).toBe("May 10");
+    expect(formatJourneyDate(new Date(2026, 4, 10, 12, 0, 0))).toBe("May 10");
   });
 
   it("includes the year for a date in a different year", () => {
-    expect(formatSessionDate(new Date(2025, 2, 15, 12, 0, 0))).toBe("Mar 15, 2025");
+    expect(formatJourneyDate(new Date(2025, 2, 15, 12, 0, 0))).toBe("Mar 15, 2025");
   });
 });
 

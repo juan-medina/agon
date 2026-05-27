@@ -5,18 +5,18 @@ import { useNavigate } from "react-router";
 import { Check, Clock, ExternalLink, Heart, Pencil } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getCurrentPlayer, updateProfile } from "@/services/auth";
-import { getUserSessions, toggleLike } from "@/services/sessions";
+import { getUserJourneys, toggleLike } from "@/services/journeys";
 import { getFollowers, getFollowing } from "@/services/players";
 import { MY_PLAYER_ID } from "@/services/auth";
 import { avatarSrc, initials } from "@/lib/display";
 import FollowListModal from "@/components/FollowListModal";
-import { formatSessionDate } from "@/lib/time";
-import type { Session, Player } from "@/models";
+import { formatJourneyDate } from "@/lib/time";
+import type { Journey, Player } from "@/models";
 
-function totalHours(sessions: Session[]): string {
-  const mins = sessions.reduce((acc, s) => {
-    const h = parseInt(s.duration.match(/(\d+)h/)?.[1] ?? "0");
-    const m = parseInt(s.duration.match(/(\d+)m/)?.[1] ?? "0");
+function totalHours(journeys: Journey[]): string {
+  const mins = journeys.reduce((acc, j) => {
+    const h = parseInt(j.duration.match(/(\d+)h/)?.[1] ?? "0");
+    const m = parseInt(j.duration.match(/(\d+)m/)?.[1] ?? "0");
     return acc + h * 60 + m;
   }, 0);
   const h = Math.floor(mins / 60);
@@ -31,7 +31,7 @@ export default function Hero() {
   const queryClient = useQueryClient();
 
   const { data: player } = useQuery({ queryKey: ["auth", "me"], queryFn: getCurrentPlayer });
-  const { data: sessions = [] } = useQuery({ queryKey: ["sessions", "user"], queryFn: getUserSessions });
+  const { data: journeys = [] } = useQuery({ queryKey: ["journeys", "user"], queryFn: getUserJourneys });
   const { data: followers = [] } = useQuery({
     queryKey: ["follow-list", MY_PLAYER_ID, "followers"],
     queryFn: () => getFollowers(MY_PLAYER_ID),
@@ -52,7 +52,7 @@ export default function Hero() {
 
   const likeMutation = useMutation({
     mutationFn: toggleLike,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["sessions", "user"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["journeys", "user"] }),
   });
 
   if (!player) return null;
@@ -160,8 +160,8 @@ export default function Hero() {
       {/* Stats */}
       <div className="mb-6 grid grid-cols-4 divide-x divide-border rounded-lg border border-border bg-card">
         {[
-          { label: "Journeys", value: sessions.length, onClick: undefined },
-          { label: "Hours", value: totalHours(sessions), onClick: undefined },
+          { label: "Journeys", value: journeys.length, onClick: undefined },
+          { label: "Hours", value: totalHours(journeys), onClick: undefined },
           {
             label: "Followers",
             value: player.followers ?? followers.length,
@@ -196,30 +196,30 @@ export default function Hero() {
         Your journeys
       </h2>
 
-      {sessions.length > 0 ? (
+      {journeys.length > 0 ? (
         <div className="flex flex-col gap-3">
-          {sessions.map((session) => {
-            const likeCount = session.likes + (session.liked ? 1 : 0);
+          {journeys.map((journey) => {
+            const likeCount = journey.likes + (journey.liked ? 1 : 0);
             return (
               <article
-                key={session.id}
+                key={journey.id}
                 className="flex cursor-pointer gap-4 rounded-lg border border-border bg-card p-4 transition-colors hover:bg-accent/5"
-                onClick={() => navigate(`/journey/${session.id}`)}
+                onClick={() => navigate(`/journey/${journey.id}`)}
               >
                 <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-md bg-slate-800">
-                  {session.coverUrl
-                    ? <img src={session.coverUrl} alt={session.game} className="absolute inset-0 h-full w-full object-cover" />
-                    : <span className="absolute inset-0 flex items-center justify-center text-2xl font-bold text-slate-300">{session.game[0]}</span>
+                  {journey.coverUrl
+                    ? <img src={journey.coverUrl} alt={journey.game} className="absolute inset-0 h-full w-full object-cover" />
+                    : <span className="absolute inset-0 flex items-center justify-center text-2xl font-bold text-slate-300">{journey.game[0]}</span>
                   }
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="mb-1">
-                    <span className="text-xs text-muted-foreground">{formatSessionDate(session.playedAt)}</span>
+                    <span className="text-xs text-muted-foreground">{formatJourneyDate(journey.playedAt)}</span>
                   </div>
                   <div className="mb-1 flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                    <span className="font-bold">{session.game}</span>
+                    <span className="font-bold">{journey.game}</span>
                     <div className="flex flex-wrap gap-1">
-                      {session.genres.map((g) => (
+                      {journey.genres.map((g) => (
                         <span
                           key={g}
                           className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground"
@@ -231,29 +231,29 @@ export default function Hero() {
                   </div>
                   <div className="mb-2 flex items-center gap-1 text-xs text-muted-foreground">
                     <Clock size={12} />
-                    <span>{session.duration}</span>
+                    <span>{journey.duration}</span>
                   </div>
-                  {session.log && (
+                  {journey.log && (
                     <p className="mb-2 text-sm italic text-muted-foreground">
-                      &ldquo;{session.log}&rdquo;
+                      &ldquo;{journey.log}&rdquo;
                     </p>
                   )}
                   <button
-                    onClick={(e) => { e.stopPropagation(); likeMutation.mutate(session.id); }}
-                    aria-label={session.liked ? "Unlike" : "Like"}
+                    onClick={(e) => { e.stopPropagation(); likeMutation.mutate(journey.id); }}
+                    aria-label={journey.liked ? "Unlike" : "Like"}
                     className="flex items-center gap-1.5 transition-colors"
                   >
                     <Heart
                       size={15}
                       className={
-                        session.liked
+                        journey.liked
                           ? "fill-rose-500 text-rose-500"
                           : "text-muted-foreground hover:text-rose-400"
                       }
                     />
                     {likeCount > 0 && (
                       <span
-                        className={`text-xs ${session.liked ? "text-rose-500" : "text-muted-foreground"}`}
+                        className={`text-xs ${journey.liked ? "text-rose-500" : "text-muted-foreground"}`}
                       >
                         {likeCount}
                       </span>

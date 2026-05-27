@@ -4,13 +4,13 @@ import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { vi, afterEach } from "vitest";
 import { MemoryRouter } from "react-router";
-import { MY_FOLLOWERS, MY_FOLLOWING, MY_PLAYER, MY_PLAYER_ID, SESSIONS } from "@/lib/mock";
-import { _reset as resetSessions } from "@/services/sessions";
+import { MY_FOLLOWERS, MY_FOLLOWING, MY_PLAYER, MY_PLAYER_ID, JOURNEYS } from "@/lib/mock";
+import { _reset as resetJourneys } from "@/services/journeys";
 import { _reset as resetPlayers } from "@/services/players";
 import { renderWithProviders } from "@/test/utils";
 import Hero from "./Hero";
 
-const MY_SESSIONS = SESSIONS.filter((s) => s.player.id === MY_PLAYER_ID);
+const MY_SESSIONS = JOURNEYS.filter((j) => j.player.id === MY_PLAYER_ID);
 
 function mockApime(overrides?: { bio?: string }) {
   let currentBio: string | null = overrides?.bio !== undefined ? overrides.bio : MY_PLAYER.bio ?? null;
@@ -47,7 +47,7 @@ function renderHero() {
 
 beforeEach(() => {
   mockApime();
-  resetSessions();
+  resetJourneys();
   resetPlayers();
 });
 
@@ -130,12 +130,12 @@ describe("Hero — follow lists", () => {
 describe("Hero — journeys", () => {
   it("shows a journey card for each of my sessions", async () => {
     renderHero();
-    for (const session of MY_SESSIONS) {
-      expect(await screen.findByText(session.game)).toBeInTheDocument();
+    for (const journey of MY_SESSIONS) {
+      expect(await screen.findByText(journey.game)).toBeInTheDocument();
     }
   });
 
-  it("liking a session changes the button label to Unlike", async () => {
+  it("liking a journey changes the button label to Unlike", async () => {
     const user = userEvent.setup();
     renderHero();
     const [firstLike] = await screen.findAllByRole("button", { name: "Like" });
@@ -143,7 +143,7 @@ describe("Hero — journeys", () => {
     expect(await screen.findByRole("button", { name: "Unlike" })).toBeInTheDocument();
   });
 
-  it("un-liking a session restores all Like buttons", async () => {
+  it("un-liking a journey restores all Like buttons", async () => {
     const user = userEvent.setup();
     renderHero();
     const [firstLike] = await screen.findAllByRole("button", { name: "Like" });

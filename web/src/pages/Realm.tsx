@@ -3,14 +3,14 @@
 import { Link, useNavigate } from "react-router";
 import { Clock, Heart } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getFeedSessions } from "@/services/feed";
-import { toggleLike } from "@/services/sessions";
+import { getFeedJourneys } from "@/services/feed";
+import { toggleLike } from "@/services/journeys";
 import { avatarSrc, playerHref } from "@/lib/display";
 import { MY_PLAYER_ID } from "@/services/auth";
-import { formatSessionDate } from "@/lib/time";
-import type { Session } from "@/models";
+import { formatJourneyDate } from "@/lib/time";
+import type { Journey } from "@/models";
 
-function SessionCard({ session }: { session: Session }) {
+function JourneyCard({ journey }: { journey: Journey }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -22,41 +22,41 @@ function SessionCard({ session }: { session: Session }) {
   return (
     <article
       className="flex cursor-pointer gap-4 rounded-lg border border-border bg-card p-4 transition-colors hover:bg-accent/5"
-      onClick={() => navigate(`/journey/${session.id}`)}
+      onClick={() => navigate(`/journey/${journey.id}`)}
     >
       <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-md bg-slate-800">
-        {session.coverUrl
-          ? <img src={session.coverUrl} alt={session.game} className="absolute inset-0 h-full w-full object-cover" />
-          : <span className="absolute inset-0 flex items-center justify-center text-2xl font-bold text-slate-300">{session.game[0]}</span>
+        {journey.coverUrl
+          ? <img src={journey.coverUrl} alt={journey.game} className="absolute inset-0 h-full w-full object-cover" />
+          : <span className="absolute inset-0 flex items-center justify-center text-2xl font-bold text-slate-300">{journey.game[0]}</span>
         }
       </div>
 
       <div className="min-w-0 flex-1">
         <div className="mb-1.5 flex items-center gap-2">
           <Link
-            to={playerHref(session.player, MY_PLAYER_ID)}
+            to={playerHref(journey.player, MY_PLAYER_ID)}
             onClick={(e) => e.stopPropagation()}
             className="flex items-center gap-2"
           >
             <img
-              src={avatarSrc(session.player)}
-              alt={session.player.name}
+              src={avatarSrc(journey.player)}
+              alt={journey.player.name}
               className="h-6 w-6 shrink-0 rounded-full object-cover"
             />
-            <span className="text-sm font-semibold leading-none">{session.player.name}</span>
+            <span className="text-sm font-semibold leading-none">{journey.player.name}</span>
           </Link>
           <span className="truncate text-xs text-muted-foreground">
-            @{session.player.handle}
+            @{journey.player.handle}
           </span>
           <span className="ml-auto shrink-0 text-xs text-muted-foreground">
-            {formatSessionDate(session.playedAt)}
+            {formatJourneyDate(journey.playedAt)}
           </span>
         </div>
 
         <div className="mb-1 flex flex-wrap items-baseline gap-x-2 gap-y-1">
-          <span className="font-bold">{session.game}</span>
+          <span className="font-bold">{journey.game}</span>
           <div className="flex flex-wrap gap-1">
-            {session.genres.map((g) => (
+            {journey.genres.map((g) => (
               <span
                 key={g}
                 className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground"
@@ -69,27 +69,27 @@ function SessionCard({ session }: { session: Session }) {
 
         <div className="mb-2 flex items-center gap-1 text-xs text-muted-foreground">
           <Clock size={12} />
-          <span>{session.duration}</span>
+          <span>{journey.duration}</span>
         </div>
 
-        {session.log && (
-          <p className="mb-2 text-sm italic text-muted-foreground">&ldquo;{session.log}&rdquo;</p>
+        {journey.log && (
+          <p className="mb-2 text-sm italic text-muted-foreground">&ldquo;{journey.log}&rdquo;</p>
         )}
 
         <button
-          onClick={(e) => { e.stopPropagation(); likeMutation.mutate(session.id); }}
+          onClick={(e) => { e.stopPropagation(); likeMutation.mutate(journey.id); }}
           className="flex items-center gap-1.5 transition-colors"
-          aria-label={session.liked ? "Unlike" : "Like"}
+          aria-label={journey.liked ? "Unlike" : "Like"}
         >
           <Heart
             size={15}
             className={
-              session.liked ? "fill-rose-500 text-rose-500" : "text-muted-foreground hover:text-rose-400"
+              journey.liked ? "fill-rose-500 text-rose-500" : "text-muted-foreground hover:text-rose-400"
             }
           />
-          {(session.likes + (session.liked ? 1 : 0)) > 0 && (
-            <span className={`text-xs ${session.liked ? "text-rose-500" : "text-muted-foreground"}`}>
-              {session.likes + (session.liked ? 1 : 0)}
+          {(journey.likes + (journey.liked ? 1 : 0)) > 0 && (
+            <span className={`text-xs ${journey.liked ? "text-rose-500" : "text-muted-foreground"}`}>
+              {journey.likes + (journey.liked ? 1 : 0)}
             </span>
           )}
         </button>
@@ -99,13 +99,13 @@ function SessionCard({ session }: { session: Session }) {
 }
 
 export default function Realm() {
-  const { data: sessions = [] } = useQuery({ queryKey: ["feed"], queryFn: getFeedSessions });
+  const { data: journeys = [] } = useQuery({ queryKey: ["feed"], queryFn: getFeedJourneys });
 
   return (
     <div className="mx-auto max-w-2xl">
       <div className="flex flex-col gap-3">
-        {sessions.map((session) => (
-          <SessionCard key={session.id} session={session} />
+        {journeys.map((journey) => (
+          <JourneyCard key={journey.id} journey={journey} />
         ))}
       </div>
     </div>

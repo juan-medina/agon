@@ -5,7 +5,7 @@ function startOfDay(date: Date): Date {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 }
 
-export function formatSessionDate(date: Date): string {
+export function formatJourneyDate(date: Date): string {
   const now = new Date();
   const todayMs = startOfDay(now).getTime();
   const dateMs = startOfDay(date).getTime();
