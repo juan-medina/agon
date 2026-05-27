@@ -4,27 +4,31 @@
 import type { Session } from "@/models/session";
 import type { Comment, JourneyPlayer } from "@/models/game";
 import type { Player } from "@/models/player";
-import { SESSIONS, MOCK_COMMENTS, MOCK_LIKERS, MOCK_FRIENDS_ON_JOURNEY, MOCK_OTHERS_ON_JOURNEY, MY_PLAYER } from "@/lib/mock";
+import { SESSIONS, MOCK_COMMENTS, MOCK_LIKERS, MOCK_FRIENDS_ON_JOURNEY, MOCK_OTHERS_ON_JOURNEY } from "@/lib/mock";
 import { likedIds } from "./sessions";
 import { isFollowingHandle } from "./players";
+import { getCurrentPlayer } from "./auth";
 
+let _sessions: Session[] = [...SESSIONS];
+let _comments: Comment[] = [...MOCK_COMMENTS];
+const _likers: Player[] = [...MOCK_LIKERS];
+const _friendsOnJourney: JourneyPlayer[] = [...MOCK_FRIENDS_ON_JOURNEY];
+const _othersOnJourney: JourneyPlayer[] = [...MOCK_OTHERS_ON_JOURNEY];
 const extraComments = new Map<string, Comment[]>();
-const initialComments = [...MOCK_COMMENTS];
-const initialSessions = [...SESSIONS];
 
 export async function getJourney(id: string): Promise<Session | undefined> {
-  const session = SESSIONS.find((s) => s.id === id);
+  const session = _sessions.find((s) => s.id === id);
   if (!session) return undefined;
   return { ...session, liked: likedIds.has(id) };
 }
 
 export async function getComments(sessionId: string): Promise<Comment[]> {
-  const base = sessionId === "s1" ? MOCK_COMMENTS : [];
+  const base = sessionId === "s1" ? _comments : [];
   return [...base, ...(extraComments.get(sessionId) ?? [])];
 }
 
 export async function getLikers(_sessionId: string): Promise<Player[]> {
-  return MOCK_LIKERS;
+  return [..._likers];
 }
 
 export async function getJourneyPlayers(_sessionId: string): Promise<{
@@ -32,11 +36,11 @@ export async function getJourneyPlayers(_sessionId: string): Promise<{
   others: JourneyPlayer[];
 }> {
   return {
-    friends: MOCK_FRIENDS_ON_JOURNEY.map((jp) => ({
+    friends: _friendsOnJourney.map((jp) => ({
       ...jp,
       isFollowing: isFollowingHandle(jp.player.handle),
     })),
-    others: MOCK_OTHERS_ON_JOURNEY.map((jp) => ({
+    others: _othersOnJourney.map((jp) => ({
       ...jp,
       isFollowing: isFollowingHandle(jp.player.handle),
     })),
@@ -44,9 +48,10 @@ export async function getJourneyPlayers(_sessionId: string): Promise<{
 }
 
 export async function postComment(sessionId: string, text: string): Promise<void> {
+  const player = await getCurrentPlayer();
   const comment: Comment = {
     id: `new-${Date.now()}`,
-    player: MY_PLAYER,
+    player,
     text,
     commentedAt: new Date(),
   };
@@ -54,8 +59,7 @@ export async function postComment(sessionId: string, text: string): Promise<void
 }
 
 export async function deleteJourney(sessionId: string): Promise<void> {
-  const idx = SESSIONS.findIndex((s) => s.id === sessionId);
-  if (idx !== -1) SESSIONS.splice(idx, 1);
+  _sessions = _sessions.filter((s) => s.id !== sessionId);
 }
 
 export async function deleteComment(sessionId: string, commentId: string): Promise<void> {
@@ -64,12 +68,11 @@ export async function deleteComment(sessionId: string, commentId: string): Promi
     extraComments.set(sessionId, extra.filter((c) => c.id !== commentId));
     return;
   }
-  const idx = MOCK_COMMENTS.findIndex((c) => c.id === commentId);
-  if (idx !== -1) MOCK_COMMENTS.splice(idx, 1);
+  _comments = _comments.filter((c) => c.id !== commentId);
 }
 
 export function _reset(): void {
   extraComments.clear();
-  MOCK_COMMENTS.splice(0, MOCK_COMMENTS.length, ...initialComments);
-  SESSIONS.splice(0, SESSIONS.length, ...initialSessions);
+  _sessions = [...SESSIONS];
+  _comments = [...MOCK_COMMENTS];
 }

@@ -127,7 +127,9 @@ describe("JourneyDetail", () => {
     renderJourney("s1");
     await user.click(await screen.findByRole("button", { name: "Delete journey" }));
     await user.click(await screen.findByRole("button", { name: "Delete" }));
-    await waitFor(() => expect(SESSIONS.find((s) => s.id === "s1")).toBeUndefined());
+    await waitFor(() =>
+      expect(screen.queryByRole("heading", { name: "Elden Ring" })).not.toBeInTheDocument(),
+    );
   });
 
   it("delete comment button appears only on own comments", async () => {
