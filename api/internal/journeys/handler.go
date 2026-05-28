@@ -43,6 +43,7 @@ func NewHandler(pool *pgxpool.Pool, jwtPriv ed25519.PrivateKey, pds string) *Han
 
 // Register mounts journey routes on mux.
 func (h *Handler) Register(mux *http.ServeMux) {
+	mux.HandleFunc("POST /api/journeys", h.add)
 	mux.HandleFunc("POST /api/pending-journeys/{id}/confirm", h.confirm)
 	mux.HandleFunc("POST /api/pending-journeys/{id}/discard", h.discard)
 	mux.HandleFunc("DELETE /api/journeys/{id}", h.delete)
@@ -78,6 +79,104 @@ type journeyRecord struct {
 	Log             *string  `json:"log,omitempty"`
 }
 
+// addRequest is the JSON body for POST /api/journeys.
+type addRequest struct {
+	IGDBID          int     `json:"igdb_id"`
+	DurationSeconds int     `json:"duration_seconds"`
+	PlayedAt        string  `json:"played_at"`
+	Log             *string `json:"log"`
+}
+
+// add logs a journey directly, publishing to AT Proto immediately.
+// No pending row is created — this is the direct path for the web app.
+func (h *Handler) add(w http.ResponseWriter, r *http.Request) {
+	did, ok := h.authenticate(w, r)
+	if !ok {
+		return
+	}
+
+	var req addRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, `{"error":"invalid_request"}`, http.StatusBadRequest)
+		return
+	}
+	if req.IGDBID == 0 {
+		http.Error(w, `{"error":"invalid_request","message":"igdb_id is required"}`, http.StatusBadRequest)
+		return
+	}
+	if req.DurationSeconds < 60 {
+		http.Error(w, `{"error":"invalid_request","message":"duration_seconds must be at least 60"}`, http.StatusBadRequest)
+		return
+	}
+	if req.PlayedAt == "" {
+		http.Error(w, `{"error":"invalid_request","message":"played_at is required"}`, http.StatusBadRequest)
+		return
+	}
+
+	playedAt, err := time.Parse(time.RFC3339, req.PlayedAt)
+	if err != nil {
+		http.Error(w, `{"error":"invalid_request","message":"played_at must be RFC3339"}`, http.StatusBadRequest)
+		return
+	}
+
+	game, err := db.GetGame(r.Context(), h.pool, req.IGDBID)
+	if err != nil {
+		log.Printf("journeys/add: get game %d: %v", req.IGDBID, err)
+		http.Error(w, `{"error":"not_found","message":"game not found in cache — search for it first"}`, http.StatusNotFound)
+		return
+	}
+
+	tokens, err := db.GetTokens(r.Context(), h.pool, did)
+	if err != nil {
+		log.Printf("journeys/add: get tokens for %s: %v", did, err)
+		http.Error(w, `{"error":"internal_error"}`, http.StatusInternalServerError)
+		return
+	}
+
+	startedAt := playedAt.Add(-time.Duration(req.DurationSeconds) * time.Second)
+
+	rec := journeyRecord{
+		Type:            "app.agon.journey",
+		IGDBID:          game.IGDBID,
+		GameTitle:       game.Name,
+		Genres:          game.Genres,
+		DurationSeconds: req.DurationSeconds,
+		StartedAt:       startedAt.UTC().Format(time.RFC3339),
+		EndedAt:         playedAt.UTC().Format(time.RFC3339),
+		Log:             req.Log,
+	}
+	if game.CoverURL != "" {
+		rec.CoverURL = &game.CoverURL
+	}
+
+	result, err := h.atp.CreateRecord(r.Context(), tokens.AccessToken, atproto.Record{
+		Collection: "app.agon.journey",
+		Repo:       did,
+		Record:     rec,
+	})
+	if err != nil {
+		log.Printf("journeys/add: create AT Proto record for %s: %v", did, err)
+		http.Error(w, `{"error":"internal_error","message":"failed to publish journey"}`, http.StatusInternalServerError)
+		return
+	}
+
+	if err := db.InsertJourneyIndex(r.Context(), h.pool, db.IndexedJourney{
+		JourneyURI: result.URI,
+		IGDBID:     game.IGDBID,
+		UserDID:    did,
+		PlayedAt:   playedAt,
+	}); err != nil {
+		log.Printf("journeys/add: insert index for %s uri=%s: %v", did, result.URI, err)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	_ = json.NewEncoder(w).Encode(map[string]string{
+		"journey_uri": result.URI,
+		"cid":         result.CID,
+	})
+}
+
 // confirmRequest is the JSON body for POST /api/pending-journeys/:id/confirm.
 type confirmRequest struct {
 	IGDBID int     `json:"igdb_id"`
@@ -110,10 +209,6 @@ func (h *Handler) confirm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Fetch the game from the IGDB cache for denormalised fields.
-	// The game must already be cached — the frontend searches games via
-	// GET /api/games/search before reaching confirmation, which populates
-	// the cache.
 	game, err := db.GetGame(r.Context(), h.pool, req.IGDBID)
 	if err != nil {
 		log.Printf("journeys/confirm: get game %d: %v", req.IGDBID, err)
@@ -152,8 +247,6 @@ func (h *Handler) confirm(w http.ResponseWriter, r *http.Request) {
 		rec.CoverURL = &game.CoverURL
 	}
 
-	// Write to AT Proto first. If this fails the pending row stays so the
-	// user can retry.
 	result, err := h.atp.CreateRecord(r.Context(), tokens.AccessToken, atproto.Record{
 		Collection: "app.agon.journey",
 		Repo:       did,
@@ -165,21 +258,16 @@ func (h *Handler) confirm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// AT Proto write succeeded. Update Postgres.
 	if err := db.InsertJourneyIndex(r.Context(), h.pool, db.IndexedJourney{
 		JourneyURI: result.URI,
 		IGDBID:     game.IGDBID,
 		UserDID:    did,
 		PlayedAt:   endedAt,
 	}); err != nil {
-		// Index write failed but the AT Proto record exists. Log and continue —
-		// the record is on the PDS and the index can be rebuilt.
 		log.Printf("journeys/confirm: insert index for %s uri=%s: %v", did, result.URI, err)
 	}
 
 	if err := db.DeletePendingJourney(r.Context(), h.pool, id, did); err != nil {
-		// Pending row deletion failed but the journey is published. Log and
-		// continue — the pending row will be evicted by pg_cron after 7 days.
 		log.Printf("journeys/confirm: delete pending %s: %v", id, err)
 	}
 
@@ -230,14 +318,12 @@ func (h *Handler) delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Delete from AT Proto first.
 	if err := h.atp.DeleteRecord(r.Context(), tokens.AccessToken, journeyURI); err != nil {
 		log.Printf("journeys/delete: delete AT Proto record %s: %v", journeyURI, err)
 		http.Error(w, `{"error":"internal_error","message":"failed to delete journey from PDS"}`, http.StatusInternalServerError)
 		return
 	}
 
-	// AT Proto delete succeeded. Remove from index.
 	if err := db.DeleteJourneyIndex(r.Context(), h.pool, journeyURI, did); err != nil {
 		log.Printf("journeys/delete: delete index %s: %v", journeyURI, err)
 	}
@@ -315,7 +401,6 @@ type journeyIndexResponse struct {
 }
 
 // listByPlayer returns confirmed journeys for a player, backed by journeys_index.
-// The handle path param is resolved to a DID via the Bluesky AppView.
 func (h *Handler) listByPlayer(w http.ResponseWriter, r *http.Request) {
 	_, ok := h.authenticate(w, r)
 	if !ok {

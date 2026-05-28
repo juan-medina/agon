@@ -143,6 +143,11 @@ func (c *Client) Search(ctx context.Context, query string) ([]Game, error) {
 		for _, genre := range g.Genres {
 			game.Genres = append(game.Genres, genre.Name)
 		}
+		// IGDB does not guarantee genres — coerce nil to empty slice so the
+		// NOT NULL constraint on igdb_games.genres is never violated.
+		if game.Genres == nil {
+			game.Genres = []string{}
+		}
 		games = append(games, game)
 	}
 	return games, nil
