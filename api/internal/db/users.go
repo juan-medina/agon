@@ -63,3 +63,18 @@ func UpdateBio(ctx context.Context, pool *pgxpool.Pool, did, bio string) error {
 	`, bio, did)
 	return err
 }
+
+// GetTokens returns the stored OAuth tokens for the given DID.
+// Returns an error if no tokens are found.
+func GetTokens(ctx context.Context, pool *pgxpool.Pool, did string) (Tokens, error) {
+	var t Tokens
+	err := pool.QueryRow(ctx, `
+		SELECT access_token, refresh_token, access_token_expires_at, dpop_key_id
+		FROM user_tokens
+		WHERE did = $1
+	`, did).Scan(&t.AccessToken, &t.RefreshToken, &t.ExpiresAt, &t.DPoPKeyID)
+	if err == pgx.ErrNoRows {
+		return Tokens{}, fmt.Errorf("tokens not found for did: %s", did)
+	}
+	return t, err
+}

@@ -16,6 +16,7 @@ import (
 	"github.com/juan-medina/agon/internal/auth"
 	"github.com/juan-medina/agon/internal/db"
 	"github.com/juan-medina/agon/internal/games"
+	"github.com/juan-medina/agon/internal/journeys"
 	"github.com/juan-medina/agon/internal/profile"
 )
 
@@ -54,6 +55,7 @@ func main() {
 	authHandler.Register(mux)
 	profile.NewHandler(pool, jwtPriv).Register(mux)
 	games.NewHandler(igdbClient, pool).Register(mux)
+	journeys.NewHandler(pool, jwtPriv, os.Getenv("BLUESKY_PDS_URL")).Register(mux)
 
 	log.Printf("listening on %s (frontend: %s)", addr, cfg.FrontendURL)
 	if err := http.ListenAndServe(addr, cors(allowedOrigin, mux)); err != nil {
