@@ -21,7 +21,7 @@ Consistent terms used throughout this document, the codebase, and the UI. When i
 
 ## What we are building
 
-A social feed for gaming journeys, built on AT Proto. The core loop: a client detects or the user manually logs when they are playing a game and for how long, proposes a journey record when they stop, the user confirms or discards it, confirmed journeys publish to their AT Proto feed and become visible to followers.
+A social feed for gaming journeys, built on AT Proto. Two ways a journey is created: the user logs one directly on the web app, which publishes immediately to AT Proto; or a client detects a running game, proposes a journey record when the process closes, and the user confirms or discards it. Either way, published journeys appear in followers' feeds.
 
 Discovery and recommendations are a secondary goal, enabled by the journey data that accumulates over time.
 
@@ -31,7 +31,7 @@ Two things form the core product:
 
 **API server** — a single Go binary. Handles all backend logic, proxies IGDB with a server-side cache, holds unconfirmed journeys until the user acts on them, and serves the exclusion list to clients.
 
-**Web frontend** — a React SPA deployed to Cloudflare Pages. Handles journey confirmation, the social feed, game search, personal stats, and exclusion management. Works standalone — no client installation required. Users who only play on platforms without an automatic detection client (PS5, Switch, etc.) log journeys manually through the web app.
+**Web frontend** — a React SPA deployed to Cloudflare Pages. Handles journey confirmation, the social feed, game search, personal stats, and exclusion management. Works standalone — no client installation required. Users log journeys directly through the web app — no client needed. The client only exists to automate detection so the user does not have to log manually.
 
 ## Clients
 
@@ -122,7 +122,7 @@ All record types Agōn defines, in one place. These are the only things written 
 
 ### `app.agon.journey`
 
-A confirmed game journey. Written when the user confirms a pending journey or manually logs one. Never written without explicit user action.
+A confirmed game journey. Written when the user submits a journey via the web app, or confirms a pending journey from agent detection. Never written without explicit user action.
 
 Fields:
 - `igdbId` — IGDB game ID
@@ -208,14 +208,14 @@ No hours, no minutes, no "3 hours ago" for journeys. The time of day is stored b
 
 **Display rule — comments** — comments are always recent and live inside a journey detail, so relative time ("23 minutes ago", "3 hours ago") is the right signal there. Comments use relative time throughout.
 
-**Manual entry — when** — the confirmation form for a manually logged journey asks when the player finished with two options only:
+**Journey entry — when** — the form for logging a journey directly asks when the player finished, with two options only:
 
 - **Just now** (default, pre-selected, no extra input) — end timestamp is the current time
 - **Choose a date** — opens a date-only calendar picker; end timestamp is set to the end of the selected day
 
 No intermediate options ("earlier today", "yesterday"). Two clear anchors are fast; ambiguous middle options require the user to categorise something that is already fuzzy.
 
-**Ordering** — journeys are ordered by date (`played_at`) descending. Within the same date, journeys are ordered by record ID descending (creation order). A manually backdated journey lands in its date bucket without displacing journeys that were already there.
+**Ordering** — journeys are ordered by date (`played_at`) descending. Within the same date, journeys are ordered by record ID descending (creation order). A backdated journey lands in its date bucket without displacing journeys that were already there.
 
 ## Navigation structure
 
