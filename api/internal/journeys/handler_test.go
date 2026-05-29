@@ -3,7 +3,6 @@
 package journeys
 
 import (
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -16,7 +15,7 @@ func TestAdd_unauthenticated(t *testing.T) {
 	h.Register(mux)
 
 	r := httptest.NewRequest(http.MethodPost, "/api/journeys",
-		strings.NewReader(`{"igdb_id":1,"duration_seconds":3600,"played_at":"2026-05-23T13:00:00Z"}`))
+		strings.NewReader(`{"igdb_id":1,"started_at":"2026-05-23T10:00:00Z","ended_at":"2026-05-23T13:00:00Z"}`))
 	r.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	mux.ServeHTTP(w, r)
@@ -84,12 +83,12 @@ func TestListPending_unauthenticated(t *testing.T) {
 	}
 }
 
-func TestListByPlayer_unauthenticated(t *testing.T) {
+func TestListMine_unauthenticated(t *testing.T) {
 	h := &Handler{}
 	mux := http.NewServeMux()
 	h.Register(mux)
 
-	r := httptest.NewRequest(http.MethodGet, "/api/players/some.handle/journeys", nil)
+	r := httptest.NewRequest(http.MethodGet, "/api/players/journeys", nil)
 	w := httptest.NewRecorder()
 	mux.ServeHTTP(w, r)
 
@@ -109,76 +108,5 @@ func TestExclude_unauthenticated(t *testing.T) {
 
 	if w.Code != http.StatusUnauthorized {
 		t.Errorf("status = %d, want %d", w.Code, http.StatusUnauthorized)
-	}
-}
-
-func TestJourneyRecord_serialisation(t *testing.T) {
-	rec := journeyRecord{
-		Type:            "app.agon.journey",
-		IGDBID:          119133,
-		GameTitle:       "Elden Ring",
-		Genres:          []string{"RPG", "Soulslike"},
-		DurationSeconds: 11640,
-		StartedAt:       "2026-05-23T10:00:00Z",
-		EndedAt:         "2026-05-23T13:14:00Z",
-	}
-
-	b, err := json.Marshal(rec)
-	if err != nil {
-		t.Fatalf("marshal: %v", err)
-	}
-
-	var out map[string]any
-	if err := json.Unmarshal(b, &out); err != nil {
-		t.Fatalf("unmarshal: %v", err)
-	}
-
-	if out["$type"] != "app.agon.journey" {
-		t.Errorf("$type = %v, want app.agon.journey", out["$type"])
-	}
-	if _, ok := out["coverUrl"]; ok {
-		t.Error("coverUrl should be omitted when nil")
-	}
-	if _, ok := out["log"]; ok {
-		t.Error("log should be omitted when nil")
-	}
-	if out["igdbId"] != float64(119133) {
-		t.Errorf("igdbId = %v, want 119133", out["igdbId"])
-	}
-	if out["durationSeconds"] != float64(11640) {
-		t.Errorf("durationSeconds = %v, want 11640", out["durationSeconds"])
-	}
-}
-
-func TestJourneyRecord_withOptionals(t *testing.T) {
-	coverURL := "https://images.igdb.com/cover.jpg"
-	logText := "Finally beat Malenia."
-	rec := journeyRecord{
-		Type:            "app.agon.journey",
-		IGDBID:          119133,
-		GameTitle:       "Elden Ring",
-		CoverURL:        &coverURL,
-		Genres:          []string{"RPG"},
-		DurationSeconds: 11640,
-		StartedAt:       "2026-05-23T10:00:00Z",
-		EndedAt:         "2026-05-23T13:14:00Z",
-		Log:             &logText,
-	}
-
-	b, err := json.Marshal(rec)
-	if err != nil {
-		t.Fatalf("marshal: %v", err)
-	}
-
-	var out map[string]any
-	if err := json.Unmarshal(b, &out); err != nil {
-		t.Fatalf("unmarshal: %v", err)
-	}
-
-	if out["coverUrl"] != coverURL {
-		t.Errorf("coverUrl = %v, want %s", out["coverUrl"], coverURL)
-	}
-	if out["log"] != logText {
-		t.Errorf("log = %v, want %s", out["log"], logText)
 	}
 }

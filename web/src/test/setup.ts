@@ -13,11 +13,11 @@ function makeDefaultFetch() {
     if (url.includes("/api/me") && (!init?.method || init.method === "GET")) {
       return new Response(
         JSON.stringify({
-          did: "did:plc:test",
+          id: MY_PLAYER.id,
           handle: MY_PLAYER.handle,
-          display_name: MY_PLAYER.name,
           avatar_url: MY_PLAYER.avatarUrl ?? null,
           bio: MY_PLAYER.bio ?? null,
+          color: MY_PLAYER.color,
         }),
         { status: 200, headers: { "Content-Type": "application/json" } },
       );

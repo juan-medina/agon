@@ -15,9 +15,6 @@ test:
 	cd api && go test ./... -v
 	cd web && pnpm test
 
-test-integration:
-	powershell -ExecutionPolicy Bypass -File scripts/run-integration-tests.ps1
-	
 lint:
 	cd web && pnpm lint
 

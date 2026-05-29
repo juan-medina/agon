@@ -10,11 +10,11 @@ import (
 
 // InsertExclusion adds an exe to the user's exclusion list.
 // Returns nil if the exe is already excluded (idempotent).
-func InsertExclusion(ctx context.Context, pool *pgxpool.Pool, did, exeName string) error {
+func InsertExclusion(ctx context.Context, pool *pgxpool.Pool, userID, exeName string) error {
 	_, err := pool.Exec(ctx, `
-		INSERT INTO exe_exclusions (did, exe_name)
+		INSERT INTO exe_exclusions (user_id, exe_name)
 		VALUES ($1, $2)
-		ON CONFLICT (did, exe_name) DO NOTHING
-	`, did, exeName)
+		ON CONFLICT (user_id, exe_name) DO NOTHING
+	`, userID, exeName)
 	return err
 }

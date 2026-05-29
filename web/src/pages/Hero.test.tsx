@@ -19,9 +19,9 @@ function mockApime(overrides?: { bio?: string }) {
     if (url.includes("/api/me") && (!init?.method || init.method === "GET")) {
       return new Response(
         JSON.stringify({
-          did: "did:plc:test",
+          id: MY_PLAYER.id,
           handle: MY_PLAYER.handle,
-          display_name: MY_PLAYER.name,
+          color: MY_PLAYER.color,
           avatar_url: MY_PLAYER.avatarUrl ?? null,
           bio: currentBio,
         }),
@@ -32,6 +32,21 @@ function mockApime(overrides?: { bio?: string }) {
       const body = JSON.parse(init.body as string);
       if (body.bio !== undefined) currentBio = body.bio;
       return new Response(null, { status: 204 });
+    }
+    if (url.includes("/api/players/journeys") && (!init?.method || init.method === "GET")) {
+      const journeys = MY_SESSIONS.map((j) => ({
+        id: j.id,
+        igdb_id: 1,
+        game_title: j.game,
+        cover_url: j.coverUrl ?? null,
+        genres: j.genres,
+        played_at: j.playedAt.toISOString(),
+        duration_seconds: 3600,
+      }));
+      return new Response(
+        JSON.stringify({ journeys }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
     }
     return new Response("not found", { status: 404 });
   });
