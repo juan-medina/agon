@@ -1,6 +1,6 @@
 # Deployment
 
-Operational decisions and the reasoning behind them. Architecture decisions live in `DESIGN.md` — this document covers how to run the thing, not how it is built.
+Operational decisions and the reasoning behind them. Architecture decisions live in `DESIGN.md`. Technology and stack choices live in `DECISIONS.md`. This document covers how to run the thing, not how it is built.
 
 ## Topology
 
@@ -16,8 +16,6 @@ Hetzner VPS               Single Go binary — API only, with application-level 
     │
     ▼
 Supabase                  Managed Postgres
-
-Bluesky PDS               AT Proto identity and confirmed session records (external)
 ```
 
 ## Frontend — Cloudflare Pages
@@ -30,7 +28,7 @@ No server is involved in serving the frontend. The SPA communicates with the API
 
 A fixed-price VPS with a known monthly cost that cannot increase regardless of traffic. When included bandwidth is exceeded Hetzner charges €1/TB overage rather than cutting service — set a traffic alert in the Hetzner dashboard to warn before the included allowance is reached. With Cloudflare absorbing inbound traffic and rate limiting enforced at both layers, hitting the outbound limit in normal operation is very unlikely.
 
-A CX22 instance (2 vCPU, 4 GB RAM, 20 TB included traffic) at roughly €4-6/month is more than sufficient for a Go binary at side-project scale.
+A CX22 instance (2 vCPU, 4 GB RAM, 20 TB included traffic) at roughly €4–6/month is more than sufficient for a Go binary at side-project scale.
 
 Pay-as-you-go platforms were ruled out because they have no hard billing ceiling. A compromised server, a bug causing runaway requests, or a sustained spike can generate a large bill before you notice. Fixed-price VPS means the worst case is a slow or unresponsive server, not an unexpected invoice. Rate limiting at both the Cloudflare and application layers ensures that even a legitimate traffic surge does not push the server beyond what it is sized for.
 
@@ -50,71 +48,57 @@ This is the outermost layer. It acts before any request reaches Hetzner.
 
 A global token bucket limiter in the Go server caps total throughput regardless of how many IPs are making requests. This is the ceiling on what the system will ever serve.
 
-The limit is set to what the VPS handles well, not what it can theoretically survive under duress:
+Configured via `RATE_LIMIT_RPS` at startup. Requests over the limit receive `429 Too Many Requests` immediately — no queuing, no retry.
 
-- **Global limit: 200 requests/second**
+### Agent — exponential backoff
 
-Requests exceeding this limit receive `429 Too Many Requests` immediately. The server does not queue them, does not slow down, and does not saturate — it simply refuses. This is the "outage not bill" behaviour: under extreme load the API degrades predictably rather than running up costs or exhausting downstream resources.
+The agent must never send requests in a tight loop. Heartbeats run every 10 minutes. Any retry on API failure must use exponential backoff with a cap. Unbounded retry loops are bugs.
 
-Reasoning: a social feed app with side-project traffic has no legitimate need for more than 200 req/s. The agent heartbeats every 10 minutes per session. The web app makes a handful of calls on page load. Even a hug-of-death from a Reddit post would not saturate this limit with genuine users — only a bug or an attack would.
+## Secrets
 
-The limit is a configuration value, not a magic number. It should be revisited when there is actual traffic data to reason from.
+| Secret | Where |
+|--------|-------|
+| `DATABASE_URL` | Hetzner VPS environment |
+| `IGDB_CLIENT_ID` / `IGDB_CLIENT_SECRET` | Hetzner VPS environment |
+| `DISCORD_CLIENT_ID` / `DISCORD_CLIENT_SECRET` | Hetzner VPS environment |
+| `SESSION_KEY_FILE` | Hetzner VPS, generated once with `make gen-keys` |
+| Supabase connection string | Hetzner VPS environment |
 
-### IGDB upstream
+Secrets are never committed to the repository. `.env.example` lists all required variables with empty values.
 
-IGDB enforces its own rate limit of 4 requests per second. All IGDB calls go through the Go API server's cache — a cache hit never touches IGDB. The server must never forward more than 4 IGDB requests per second regardless of how many inbound API requests are in flight. This is enforced in the IGDB proxy layer, not relied upon from IGDB's 429 responses.
+## Database migrations
 
-## Tray agent — distributed via Velopack
+Development uses `scripts/db-init.sql` — drops and recreates all tables on every run. Dev data is always throwaway.
 
-The agent is distributed as a Windows installer built with Velopack. Velopack handles installation, the `agon://` URL scheme registration, auto-updates, and clean uninstall. The agent checks for updates on startup and applies them silently in the background.
-
-Update packages are hosted on GitHub Releases. No update server to operate.
-
-## Database — Supabase
-
-Supabase hosts Postgres. The free tier is sufficient for early traffic. The application has no knowledge of the provider — it connects via a standard Postgres connection string injected as an environment variable. Supabase's `pg_cron` extension runs the eviction job for expired unconfirmed sessions nightly:
-
-```sql
-DELETE FROM sessions
-WHERE status IN ('active', 'ended')
-AND created_at < NOW() - INTERVAL '7 days';
-```
-
-Supabase Pro's spend cap is enabled. The cap protects against a bug exhausting connection pools or triggering unexpected usage charges overnight.
-
-## Server hardening
-
-- SSH key authentication only — password login disabled
-- Fail2ban blocking repeated failed SSH attempts
-- Automatic unattended security updates enabled
-- Go binary runs as a dedicated non-root user
-- Only ports 80 and 443 open publicly — port 22 restricted to known IPs where possible
-- Cloudflare proxy enabled on the DNS record so the VPS IP is not exposed directly
-
-## Environment variables
-
-Secrets are never committed. The binary reads configuration from environment variables at startup:
-
-```
-DATABASE_URL          Supabase Postgres connection string
-IGDB_CLIENT_ID        Twitch application client ID
-IGDB_CLIENT_SECRET    Twitch application client secret
-ATPROTO_PDS_URL       Bluesky PDS endpoint
-RATE_LIMIT_RPS        Global request rate limit (requests/second, default 200)
-```
-
-On the VPS these are set in the systemd service unit file, not in a shell profile or `.env` file.
+Production uses numbered migration files (goose or golang-migrate) before first deploy. The migration tool runs as part of the deploy process before the binary starts.
 
 ## Process management
 
-The Go binary runs as a systemd service. Systemd handles startup on boot, restarts on crash, and log collection via journald. No Docker, no container runtime.
+The Go binary runs as a systemd service on the Hetzner VPS. Systemd handles restarts on failure and starts the process on boot.
 
-## Deployment
+A minimal service file:
 
-```sh
-go build -o bin/api ./api
-scp bin/api user@host:/opt/agon/api
-ssh user@host "systemctl restart agon"
+```ini
+[Unit]
+Description=Agōn API
+After=network.target
+
+[Service]
+EnvironmentFile=/etc/agon/env
+ExecStart=/usr/local/bin/agon-api
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
 ```
 
-CI can automate this once the project has enough contributors to justify it.
+## Deploy process
+
+1. Push to `main`
+2. GitHub Actions builds the Go binary
+3. Binary is copied to the VPS via `scp` or `rsync`
+4. Migrations run against the production database
+5. systemd restarts the service
+
+No containers, no orchestration. One binary, one process, one thing to restart.

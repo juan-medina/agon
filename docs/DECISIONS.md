@@ -1,0 +1,85 @@
+# Decisions
+
+Architecture Decision Records for Agōn. Each entry captures a choice, its context, and the reasoning behind it. Decisions are recorded here so they are not relitigated. The code and `DESIGN.md` describe what the system is — this document explains why it is that way.
+
+---
+
+## Go for the API server
+
+A single Go binary handles all backend logic. Go was chosen for its simplicity, fast compile times, low memory footprint, and strong standard library — `net/http` handles everything the API needs without a framework. The toolchain produces a self-contained binary with no runtime dependencies, which makes deployment straightforward on a plain VPS.
+
+---
+
+## React for the frontend
+
+React was chosen over SvelteKit, Vue, and other options primarily for contributor accessibility. It has the largest frontend developer community by a significant margin, the most tutorials, and the most available help. SvelteKit would be faster to write but React wins on the ability to attract contributors to an open source project.
+
+Next.js was ruled out — server-side rendering adds complexity that a logged-in tool with no SEO requirements does not need. A plain SPA is sufficient.
+
+---
+
+## Frontend and backend as separate deployments
+
+The React SPA is static — HTML, CSS, and JavaScript with no server-side rendering. Cloudflare Pages serves it from the edge globally at no cost. There is no reason to serve static files from the Go binary or pay for a server to do what a CDN does better for free. The Go binary is responsible only for API routes.
+
+---
+
+## One Go binary for the API
+
+The scope does not justify a gateway, a reverse proxy, or multiple services. Go's `net/http` handles everything needed. One binary means one process, one thing to monitor, and one thing to deploy.
+
+---
+
+## C# for the Windows tray agent
+
+The tray agent is a Windows-only component. C# with .NET gives first-class access to the Windows API, mature libraries for tray icon and process management, and a comfortable ecosystem for Windows desktop tooling. Velopack handles installer generation and auto-update, which has good C# support.
+
+---
+
+## Hetzner VPS over serverless platforms
+
+Pay-as-you-go serverless platforms have no hard billing ceiling. A misconfigured cache, a bug causing runaway requests, or a sustained spike can generate a large bill before you notice. A fixed-price VPS means the worst case is a slow or unresponsive server, not an unexpected invoice.
+
+A CX22 instance (2 vCPU, 4 GB RAM, 20 TB included traffic) is more than sufficient for a Go binary at side-project scale and costs roughly €4–6/month regardless of traffic.
+
+---
+
+## Cloudflare Pages for the frontend
+
+The React SPA is static — HTML, CSS, and JavaScript with no server-side rendering. Cloudflare Pages serves it from the edge globally at no bandwidth cost, with automatic deploys on every push to `main` and preview URLs per pull request. There is no reason to serve static files from the Go binary or pay for a server to do what a CDN does for free.
+
+---
+
+## Supabase for Postgres
+
+Supabase provides managed Postgres with `pg_cron` support, which is needed for the nightly eviction job for expired unconfirmed journeys. The application connects via a standard Postgres connection string and has no knowledge of the provider — switching to a different managed Postgres service requires only a connection string change.
+
+---
+
+## Discord OAuth for authentication
+
+Discord OAuth is the primary authentication method. Discord was chosen because it has the highest account penetration among the target audience — gamers already have Discord accounts and are used to linking them to third-party services.
+
+The users table stores `(provider, provider_id)` alongside an internal UUID, making the system ready for additional providers (Google, GitHub) without schema changes. Discord's `identify` scope is sufficient — it provides a stable numeric user ID, username, display name, and avatar.
+
+---
+
+## No AT Proto
+
+AT Proto was considered as the identity and storage layer. The decision was made not to use it for the following reasons:
+
+Every write would require a second write to the PDS — double the latency and egress cost per action. All queries would still need a local Postgres index anyway, since feeds, like counts, and comment lists are impractical to assemble across a distributed network on every request. AT Proto would be a write-through cache that provides no query value. The federation promise does not deliver at MVP scale — there are no other Agōn clients to read the records, and the API must mediate all writes to keep indexes current. The auth layer (DPoP, PAR, PDS token refresh) is significantly more complex than standard OAuth 2.0.
+
+Data portability can be addressed independently — a `GET /users/me/export` endpoint is a simpler and more direct answer than delegating storage to a third-party protocol.
+
+---
+
+## Postgres as the source of truth
+
+Postgres is the single source of truth for all data. There is no external record store or distributed ledger. This simplifies the write path (one write per action), eliminates egress to third-party infrastructure, and keeps the query model straightforward. All tables are owned by Agōn and backed up through Supabase.
+
+---
+
+## IGDB for game metadata
+
+IGDB (owned by Twitch) is free for non-commercial use and is the most comprehensive game database available. The Twitch client secret lives server-side only — the frontend and agent never touch it. IGDB responses are cached in Postgres with a TTL to stay within rate limits and avoid redundant upstream calls.
