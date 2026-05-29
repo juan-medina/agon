@@ -4,7 +4,6 @@ package main
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/x509"
 	"encoding/pem"
@@ -21,22 +20,19 @@ import (
 )
 
 func main() {
-	dpopPriv, err := loadECDSAKey(mustEnv("DPOP_KEY_FILE"))
-	if err != nil {
-		log.Fatalf("load DPoP key: %v\nRun `make gen-keys` first.", err)
-	}
 	jwtPriv, err := loadEd25519Key(mustEnv("SESSION_KEY_FILE"))
 	if err != nil {
 		log.Fatalf("load session key: %v\nRun `make gen-keys` first.", err)
 	}
 
 	cfg := auth.Config{
-		ClientID:      mustEnv("BLUESKY_CLIENT_ID"),
-		RedirectURI:   mustEnv("BLUESKY_REDIRECT_URI"),
+		ClientID:      mustEnv("DISCORD_CLIENT_ID"),
+		ClientSecret:  mustEnv("DISCORD_CLIENT_SECRET"),
+		RedirectURI:   mustEnv("DISCORD_REDIRECT_URI"),
 		FrontendURL:   mustEnv("FRONTEND_URL"),
-		AuthEndpoint:  mustEnv("BLUESKY_AUTH_ENDPOINT"),
-		PAREndpoint:   mustEnv("BLUESKY_PAR_ENDPOINT"),
-		TokenEndpoint: mustEnv("BLUESKY_TOKEN_ENDPOINT"),
+		AuthEndpoint:  mustEnv("DISCORD_AUTH_ENDPOINT"),
+		TokenEndpoint: mustEnv("DISCORD_TOKEN_ENDPOINT"),
+		UserEndpoint:  mustEnv("DISCORD_USER_ENDPOINT"),
 	}
 
 	addr := envOr("SERVER_ADDR", ":8080")
@@ -51,11 +47,10 @@ func main() {
 	igdbClient := games.NewClient(mustEnv("IGDB_CLIENT_ID"), mustEnv("IGDB_CLIENT_SECRET"))
 
 	mux := http.NewServeMux()
-	authHandler := auth.NewHandler(dpopPriv, jwtPriv, pool, cfg)
-	authHandler.Register(mux)
+	auth.NewHandler(jwtPriv, pool, cfg).Register(mux)
 	profile.NewHandler(pool, jwtPriv).Register(mux)
 	games.NewHandler(igdbClient, pool).Register(mux)
-	journeys.NewHandler(pool, jwtPriv, dpopPriv, os.Getenv("BLUESKY_PDS_URL")).Register(mux)
+	journeys.NewHandler(pool, jwtPriv).Register(mux)
 
 	log.Printf("listening on %s (frontend: %s)", addr, cfg.FrontendURL)
 	if err := http.ListenAndServe(addr, cors(allowedOrigin, mux)); err != nil {
@@ -69,7 +64,7 @@ func cors(allowedOrigin string, next http.Handler) http.Handler {
 		if origin := r.Header.Get("Origin"); origin == allowedOrigin {
 			w.Header().Set("Access-Control-Allow-Origin", origin)
 			w.Header().Set("Access-Control-Allow-Credentials", "true")
-			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PATCH, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS")
 			w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 		}
 		if r.Method == http.MethodOptions {
@@ -78,18 +73,6 @@ func cors(allowedOrigin string, next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
-}
-
-func loadECDSAKey(path string) (*ecdsa.PrivateKey, error) {
-	key, err := loadPKCS8Key(path)
-	if err != nil {
-		return nil, err
-	}
-	priv, ok := key.(*ecdsa.PrivateKey)
-	if !ok {
-		return nil, fmt.Errorf("%s does not contain a P-256 key (run `make gen-keys` to regenerate)", path)
-	}
-	return priv, nil
 }
 
 func loadEd25519Key(path string) (ed25519.PrivateKey, error) {

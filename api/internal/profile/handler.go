@@ -5,8 +5,6 @@ package profile
 import (
 	"crypto/ed25519"
 	"encoding/json"
-	"fmt"
-	"io"
 	"log"
 	"net/http"
 
@@ -34,83 +32,47 @@ func (h *Handler) authenticate(w http.ResponseWriter, r *http.Request) (string, 
 	if err != nil {
 		return "", false
 	}
-	did, err := auth.ParseAndRenewSession(w, cookie.Value, h.jwtPriv)
+	userID, err := auth.ParseAndRenewSession(w, cookie.Value, h.jwtPriv)
 	if err != nil {
 		return "", false
 	}
-	return did, true
-}
-
-type bskyProfile struct {
-	Handle      string `json:"handle"`
-	DisplayName string `json:"displayName"`
-	Avatar      string `json:"avatar"`
-}
-
-func fetchBskyProfile(did string) (bskyProfile, error) {
-	resp, err := http.Get("https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor=" + did)
-	if err != nil {
-		return bskyProfile{}, fmt.Errorf("fetch profile: %w", err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		b, _ := io.ReadAll(resp.Body)
-		return bskyProfile{}, fmt.Errorf("bsky profile %d: %s", resp.StatusCode, b)
-	}
-	var p bskyProfile
-	if err := json.NewDecoder(resp.Body).Decode(&p); err != nil {
-		return bskyProfile{}, fmt.Errorf("decode profile: %w", err)
-	}
-	return p, nil
+	return userID, true
 }
 
 type meResponse struct {
-	DID         string  `json:"did"`
-	Handle      string  `json:"handle"`
-	DisplayName *string `json:"display_name"`
-	AvatarURL   *string `json:"avatar_url"`
-	Bio         *string `json:"bio"`
+	ID        string  `json:"id"`
+	Handle    string  `json:"handle"`
+	AvatarURL *string `json:"avatar_url"`
+	Bio       *string `json:"bio"`
+	Color     string  `json:"color"`
 }
 
 func (h *Handler) getMe(w http.ResponseWriter, r *http.Request) {
-	did, ok := h.authenticate(w, r)
+	userID, ok := h.authenticate(w, r)
 	if !ok {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
 
-	user, err := db.GetUser(r.Context(), h.pool, did)
+	user, err := db.GetUser(r.Context(), h.pool, userID)
 	if err != nil {
-		log.Printf("profile/me: get user %s: %v", did, err)
+		log.Printf("profile/me: get user %s: %v", userID, err)
 		http.Error(w, "not found", http.StatusNotFound)
 		return
 	}
 
-	bsky, err := fetchBskyProfile(did)
-	if err != nil {
-		log.Printf("profile/me: fetch bsky profile %s: %v", did, err)
-		http.Error(w, "profile fetch failed", http.StatusBadGateway)
-		return
-	}
-
-	resp := meResponse{
-		DID:    user.DID,
-		Handle: bsky.Handle,
-		Bio:    user.Bio,
-	}
-	if bsky.DisplayName != "" {
-		resp.DisplayName = &bsky.DisplayName
-	}
-	if bsky.Avatar != "" {
-		resp.AvatarURL = &bsky.Avatar
-	}
-
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(resp)
+	_ = json.NewEncoder(w).Encode(meResponse{
+		ID:        user.ID,
+		Handle:    user.Handle,
+		AvatarURL: user.AvatarURL,
+		Bio:       user.Bio,
+		Color:     user.Color,
+	})
 }
 
 func (h *Handler) patchMe(w http.ResponseWriter, r *http.Request) {
-	did, ok := h.authenticate(w, r)
+	userID, ok := h.authenticate(w, r)
 	if !ok {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
@@ -125,8 +87,8 @@ func (h *Handler) patchMe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if body.Bio != nil {
-		if err := db.UpdateBio(r.Context(), h.pool, did, *body.Bio); err != nil {
-			log.Printf("profile/me: update bio %s: %v", did, err)
+		if err := db.UpdateBio(r.Context(), h.pool, userID, *body.Bio); err != nil {
+			log.Printf("profile/me: update bio %s: %v", userID, err)
 			http.Error(w, "update failed", http.StatusInternalServerError)
 			return
 		}

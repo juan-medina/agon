@@ -5,76 +5,77 @@ package db
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+// User is a row from the users table.
 type User struct {
-	DID string
-	Bio *string
+	ID        string
+	Provider  string
+	Handle    string
+	AvatarURL *string
+	Bio       *string
+	Color     string
 }
 
-type Tokens struct {
-	AccessToken  string
-	RefreshToken string
-	ExpiresAt    time.Time
-	DPoPKeyID    string
+// UserIdentity holds the identity fields returned by the OAuth provider.
+// Passed to UpsertUser on every login.
+type UserIdentity struct {
+	Provider   string
+	ProviderID string
+	Handle     string
+	Name       string
+	AvatarURL  string
 }
 
-// UpsertUser ensures a row exists for this DID. Bio is not touched — it is
-// user-controlled and only changed via UpdateBio.
-func UpsertUser(ctx context.Context, pool *pgxpool.Pool, did string) error {
-	_, err := pool.Exec(ctx, `
-		INSERT INTO users (did) VALUES ($1) ON CONFLICT (did) DO NOTHING
-	`, did)
-	return err
+// UpsertUser inserts or updates the user row for the given provider identity
+// and returns the internal UUID. Handle and avatar_url are refreshed on every
+// login; bio and color are never touched here.
+func UpsertUser(ctx context.Context, pool *pgxpool.Pool, identity UserIdentity) (string, error) {
+	var id string
+	err := pool.QueryRow(ctx, `
+		INSERT INTO users (provider, provider_id, handle, avatar_url)
+		VALUES ($1, $2, $3, $4)
+		ON CONFLICT (provider, provider_id) DO UPDATE
+		  SET handle     = EXCLUDED.handle,
+		      avatar_url = EXCLUDED.avatar_url,
+		      updated_at = now()
+		RETURNING id
+	`, identity.Provider, identity.ProviderID, identity.Handle, nullableString(identity.AvatarURL)).Scan(&id)
+	if err != nil {
+		return "", fmt.Errorf("upsert user: %w", err)
+	}
+	return id, nil
 }
 
-func UpsertTokens(ctx context.Context, pool *pgxpool.Pool, did string, t Tokens) error {
-	_, err := pool.Exec(ctx, `
-		INSERT INTO user_tokens (did, access_token, refresh_token, access_token_expires_at, dpop_key_id)
-		VALUES ($1, $2, $3, $4, $5)
-		ON CONFLICT (did) DO UPDATE
-		  SET access_token            = EXCLUDED.access_token,
-		      refresh_token           = EXCLUDED.refresh_token,
-		      access_token_expires_at = EXCLUDED.access_token_expires_at,
-		      dpop_key_id             = EXCLUDED.dpop_key_id,
-		      updated_at              = now()
-	`, did, t.AccessToken, t.RefreshToken, t.ExpiresAt, t.DPoPKeyID)
-	return err
-}
-
-func GetUser(ctx context.Context, pool *pgxpool.Pool, did string) (User, error) {
+// GetUser returns the user row for the given internal UUID.
+func GetUser(ctx context.Context, pool *pgxpool.Pool, id string) (User, error) {
 	var u User
 	err := pool.QueryRow(ctx, `
-		SELECT did, bio FROM users WHERE did = $1
-	`, did).Scan(&u.DID, &u.Bio)
+		SELECT id, provider, handle, avatar_url, bio, color
+		FROM users WHERE id = $1
+	`, id).Scan(&u.ID, &u.Provider, &u.Handle, &u.AvatarURL, &u.Bio, &u.Color)
 	if err == pgx.ErrNoRows {
-		return User{}, fmt.Errorf("user not found: %s", did)
+		return User{}, fmt.Errorf("user not found: %s", id)
 	}
 	return u, err
 }
 
-func UpdateBio(ctx context.Context, pool *pgxpool.Pool, did, bio string) error {
+// UpdateBio sets the bio for the given user ID.
+func UpdateBio(ctx context.Context, pool *pgxpool.Pool, id, bio string) error {
 	_, err := pool.Exec(ctx, `
-		UPDATE users SET bio = $1, updated_at = now() WHERE did = $2
-	`, bio, did)
+		UPDATE users SET bio = $1, updated_at = now() WHERE id = $2
+	`, bio, id)
 	return err
 }
 
-// GetTokens returns the stored OAuth tokens for the given DID.
-// Returns an error if no tokens are found.
-func GetTokens(ctx context.Context, pool *pgxpool.Pool, did string) (Tokens, error) {
-	var t Tokens
-	err := pool.QueryRow(ctx, `
-		SELECT access_token, refresh_token, access_token_expires_at, dpop_key_id
-		FROM user_tokens
-		WHERE did = $1
-	`, did).Scan(&t.AccessToken, &t.RefreshToken, &t.ExpiresAt, &t.DPoPKeyID)
-	if err == pgx.ErrNoRows {
-		return Tokens{}, fmt.Errorf("tokens not found for did: %s", did)
+// nullableString returns nil if s is empty, otherwise a pointer to s.
+// Used to store optional provider fields as NULL rather than empty string.
+func nullableString(s string) *string {
+	if s == "" {
+		return nil
 	}
-	return t, err
+	return &s
 }

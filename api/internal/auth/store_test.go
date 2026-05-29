@@ -27,24 +27,24 @@ func TestStateStore_putAndGet(t *testing.T) {
 	}
 }
 
-func TestStateStore_setDID(t *testing.T) {
+func TestStateStore_setUserID(t *testing.T) {
 	s := newStateStore()
 	s.put("state1", "verifier1", time.Minute)
 
-	if ok := s.setDID("state1", "did:plc:test"); !ok {
-		t.Fatal("setDID returned false for existing entry")
+	if ok := s.setUserID("state1", "01920f3a-0000-0000-0000-000000000000"); !ok {
+		t.Fatal("setUserID returned false for existing entry")
 	}
 
 	e, _ := s.get("state1")
-	if e.did != "did:plc:test" {
-		t.Errorf("did = %q, want %q", e.did, "did:plc:test")
+	if e.userID != "01920f3a-0000-0000-0000-000000000000" {
+		t.Errorf("userID = %q, want %q", e.userID, "01920f3a-0000-0000-0000-000000000000")
 	}
 }
 
-func TestStateStore_setDID_missing(t *testing.T) {
+func TestStateStore_setUserID_missing(t *testing.T) {
 	s := newStateStore()
-	if ok := s.setDID("nonexistent", "did:plc:test"); ok {
-		t.Error("setDID returned true for missing entry")
+	if ok := s.setUserID("nonexistent", "01920f3a-0000-0000-0000-000000000000"); ok {
+		t.Error("setUserID returned true for missing entry")
 	}
 }
 

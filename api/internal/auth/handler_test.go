@@ -3,9 +3,7 @@
 package auth
 
 import (
-	"crypto/ecdsa"
 	"crypto/ed25519"
-	"crypto/elliptic"
 	"crypto/rand"
 	"net/http"
 	"net/http/httptest"
@@ -16,15 +14,11 @@ import (
 
 func newTestHandler(t *testing.T) *Handler {
 	t.Helper()
-	dpopPriv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil {
-		t.Fatalf("generate dpop key: %v", err)
-	}
 	_, jwtPriv, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
 		t.Fatalf("generate jwt key: %v", err)
 	}
-	return NewHandler(dpopPriv, jwtPriv, nil, Config{FrontendURL: "http://localhost"})
+	return NewHandler(jwtPriv, nil, Config{FrontendURL: "http://localhost"})
 }
 
 func TestSession_missingCookie(t *testing.T) {
@@ -52,9 +46,9 @@ func TestSession_unknownState(t *testing.T) {
 	}
 }
 
-func TestSession_didPending(t *testing.T) {
+func TestSession_userIDPending(t *testing.T) {
 	h := newTestHandler(t)
-	// State exists but DID not yet set (callback not completed).
+	// State exists but userID not yet set (callback not completed).
 	h.store.put("state1", "verifier", time.Minute)
 
 	r := httptest.NewRequest(http.MethodPost, "/auth/session", nil)
@@ -71,7 +65,7 @@ func TestSession_didPending(t *testing.T) {
 func TestSession_success(t *testing.T) {
 	h := newTestHandler(t)
 	h.store.put("state1", "verifier", time.Minute)
-	h.store.setDID("state1", "did:plc:abc123")
+	h.store.setUserID("state1", "01920f3a-0000-0000-0000-000000000000")
 
 	r := httptest.NewRequest(http.MethodPost, "/auth/session", nil)
 	r.AddCookie(&http.Cookie{Name: "auth_state", Value: "state1"})

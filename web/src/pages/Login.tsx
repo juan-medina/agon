@@ -4,7 +4,7 @@ import { signIn } from "@/services/auth";
 
 export default function Login() {
   function handleSignIn() {
-    signIn().catch(console.error);
+    signIn();
   }
 
   return (
@@ -21,11 +21,8 @@ export default function Login() {
             onClick={handleSignIn}
             className="w-full rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            Sign in with Bluesky
+            Sign in with Discord
           </button>
-          <p className="text-center text-xs text-muted-foreground">
-            A Bluesky account is required to use agōn
-          </p>
         </div>
       </div>
     </div>

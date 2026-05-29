@@ -8,10 +8,10 @@ import (
 )
 
 // stateEntry holds OAuth state keyed by the server-generated state nonce.
-// serverVerifier is set on initAuth; did is set after the Bluesky callback.
+// serverVerifier is set on initAuth; userID is set after the provider callback.
 type stateEntry struct {
 	serverVerifier string
-	did            string
+	userID         string
 	expires        time.Time
 }
 
@@ -35,16 +35,16 @@ func (s *stateStore) put(state, serverVerifier string, ttl time.Duration) {
 	}
 }
 
-// setDID populates the DID for an existing entry. Returns false if the entry
-// is missing or expired.
-func (s *stateStore) setDID(state, did string) bool {
+// setUserID populates the userID for an existing entry. Returns false if the
+// entry is missing or expired.
+func (s *stateStore) setUserID(state, userID string) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	e, ok := s.entries[state]
 	if !ok || time.Now().After(e.expires) {
 		return false
 	}
-	e.did = did
+	e.userID = userID
 	s.entries[state] = e
 	return true
 }

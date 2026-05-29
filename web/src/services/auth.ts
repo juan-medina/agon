@@ -17,10 +17,10 @@ export async function getCurrentPlayer(): Promise<Player> {
   if (!resp.ok) throw new Error(`get profile: ${resp.status}`);
   const data = await resp.json();
   return {
-    id: data.did,
-    name: data.display_name ?? data.handle,
+    id: data.id,
+    name: data.handle,
     handle: data.handle,
-    color: deriveColor(data.did),
+    color: data.color ?? deriveColor(data.id),
     avatarUrl: data.avatar_url ?? undefined,
     bio: data.bio ?? undefined,
   };
@@ -38,13 +38,13 @@ export async function updateProfile(patch: { name?: string; bio?: string }): Pro
 }
 
 // Navigates the browser to the API's auth/init endpoint. The server generates
-// a state nonce, sets it in a cookie, and redirects to Bluesky — does not return.
+// a PKCE verifier, sets it in a cookie, and redirects to Discord — does not return.
 export function signIn(): void {
   window.location.href = `${API_BASE}/auth/init`;
 }
 
-// Called by the /auth/complete page after Bluesky redirects back. The server
-// reads the auth_state cookie, issues a session JWT, and sets agon_authed=1.
+// Called by the /auth/complete page after Discord redirects back. The server
+// reads the auth_state cookie, issues a session JWT, and sets the agon_session cookie.
 export async function completeSignIn(): Promise<void> {
   const resp = await fetch(`${API_BASE}/auth/session`, {
     method: "POST",
@@ -60,4 +60,3 @@ export async function signOut(): Promise<void> {
 
 // No-op kept for test compatibility.
 export function _reset(): void {}
-

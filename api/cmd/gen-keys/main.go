@@ -3,9 +3,7 @@
 package main
 
 import (
-	"crypto/ecdsa"
 	"crypto/ed25519"
-	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/x509"
 	"encoding/pem"
@@ -15,23 +13,10 @@ import (
 )
 
 func main() {
-	if err := writeECDSA("../keys/dpop.pem"); err != nil {
-		fmt.Fprintf(os.Stderr, "dpop key: %v\n", err)
-		os.Exit(1)
-	}
 	if err := writeEd25519("../keys/session.pem"); err != nil {
 		fmt.Fprintf(os.Stderr, "session key: %v\n", err)
 		os.Exit(1)
 	}
-}
-
-// writeECDSA generates a P-256 key. ES256 is required by AT Protocol for DPoP.
-func writeECDSA(path string) error {
-	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil {
-		return fmt.Errorf("generate: %w", err)
-	}
-	return writePKCS8(path, priv, "P-256")
 }
 
 // writeEd25519 generates an Ed25519 key for signing session JWTs.

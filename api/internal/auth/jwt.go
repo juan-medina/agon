@@ -20,12 +20,13 @@ type sessionClaims struct {
 	jwt.RegisteredClaims
 }
 
-// CreateSessionJWT issues a signed EdDSA JWT containing the user's DID as subject.
-func CreateSessionJWT(did string, priv ed25519.PrivateKey) (string, error) {
+// CreateSessionJWT issues a signed EdDSA JWT containing the user's internal
+// UUID as subject.
+func CreateSessionJWT(userID string, priv ed25519.PrivateKey) (string, error) {
 	now := time.Now()
 	claims := sessionClaims{
 		RegisteredClaims: jwt.RegisteredClaims{
-			Subject:   did,
+			Subject:   userID,
 			IssuedAt:  jwt.NewNumericDate(now),
 			ExpiresAt: jwt.NewNumericDate(now.Add(sessionDuration)),
 		},
@@ -34,7 +35,7 @@ func CreateSessionJWT(did string, priv ed25519.PrivateKey) (string, error) {
 	return t.SignedString(priv)
 }
 
-// ParseSessionJWT verifies a session JWT and returns the DID.
+// ParseSessionJWT verifies a session JWT and returns the user's internal UUID.
 func ParseSessionJWT(tokenString string, pub ed25519.PublicKey) (string, error) {
 	t, err := jwt.ParseWithClaims(tokenString, &sessionClaims{}, func(t *jwt.Token) (interface{}, error) {
 		if _, ok := t.Method.(*jwt.SigningMethodEd25519); !ok {
@@ -52,9 +53,9 @@ func ParseSessionJWT(tokenString string, pub ed25519.PublicKey) (string, error) 
 	return claims.Subject, nil
 }
 
-// ParseAndRenewSession verifies the JWT and returns the DID. If the token
-// expires within sessionRenewThreshold, a fresh 7-day token is issued and
-// set as a new cookie on w — the caller sees nothing.
+// ParseAndRenewSession verifies the JWT and returns the user's internal UUID.
+// If the token is older than sessionRenewAfter, a fresh token is issued and
+// set as a new cookie — the caller sees nothing.
 func ParseAndRenewSession(w http.ResponseWriter, tokenString string, priv ed25519.PrivateKey) (string, error) {
 	pub := priv.Public().(ed25519.PublicKey)
 	t, err := jwt.ParseWithClaims(tokenString, &sessionClaims{}, func(t *jwt.Token) (interface{}, error) {
