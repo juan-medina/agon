@@ -30,13 +30,13 @@ func NewHandler(pool *pgxpool.Pool, jwtPriv ed25519.PrivateKey) *Handler {
 
 // Register mounts journey routes on mux.
 func (h *Handler) Register(mux *http.ServeMux) {
-	mux.HandleFunc("POST /api/journeys", h.add)
-	mux.HandleFunc("DELETE /api/journeys/{id}", h.delete)
-	mux.HandleFunc("GET /api/players/journeys", h.listMine)
-	mux.HandleFunc("GET /api/pending-journeys", h.listPending)
-	mux.HandleFunc("POST /api/pending-journeys/{id}/confirm", h.confirm)
-	mux.HandleFunc("POST /api/pending-journeys/{id}/discard", h.discard)
-	mux.HandleFunc("POST /api/pending-journeys/{id}/exclude", h.exclude)
+	mux.HandleFunc("POST /api/players/me/journeys", h.add)
+	mux.HandleFunc("DELETE /api/players/me/journeys/{id}", h.delete)
+	mux.HandleFunc("GET /api/players/me/journeys", h.listMine)
+	mux.HandleFunc("GET /api/players/me/journeys/pending", h.listPending)
+	mux.HandleFunc("POST /api/players/me/journeys/pending/{id}/confirm", h.confirm)
+	mux.HandleFunc("POST /api/players/me/journeys/pending/{id}/discard", h.discard)
+	mux.HandleFunc("POST /api/players/me/journeys/pending/{id}/exclude", h.exclude)
 }
 
 func (h *Handler) authenticate(w http.ResponseWriter, r *http.Request) (string, bool) {

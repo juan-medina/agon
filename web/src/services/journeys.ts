@@ -50,7 +50,7 @@ type RawJourney = {
 export async function getUserJourneys(): Promise<Journey[]> {
   const player = await getCurrentPlayer();
   console.log("[getUserJourneys] player:", player.id, player.handle);
-  const url = `${API_BASE}/api/players/journeys`;
+  const url = `${API_BASE}/api/players/me/journeys`;
   const resp = await fetch(url, { credentials: "include" });
   console.log("[getUserJourneys] response status:", resp.status);
   if (!resp.ok) throw new Error(`get user journeys: ${resp.status}`);
@@ -70,15 +70,15 @@ export async function getUserJourneys(): Promise<Journey[]> {
 }
 
 export async function getPendingJourneys(): Promise<PendingJourney[]> {
-  const resp = await fetch(`${API_BASE}/api/pending-journeys`, {
+  const resp = await fetch(`${API_BASE}/api/players/me/journeys/pending`, {
     credentials: "include",
   });
   if (!resp.ok) {
     return _pendingJourneys.filter((p) => !_discardedIds.has(p.id));
   }
-  const data: { pending_journeys: RawPendingJourney[] } = await resp.json();
+  const data: { journeys: RawPendingJourney[] } = await resp.json();
 
-  return (data.pending_journeys ?? []).map((p): PendingJourney => {
+  return (data.journeys ?? []).map((p): PendingJourney => {
     const startedAt = new Date(p.started_at);
     const endedAt = p.ended_at ? new Date(p.ended_at) : new Date();
     const durationSeconds = Math.floor((endedAt.getTime() - startedAt.getTime()) / 1000);
@@ -111,7 +111,7 @@ export async function addJourney(input: NewJourney): Promise<void> {
     log: input.log ?? null,
   };
   console.log("[addJourney] posting:", JSON.stringify(body));
-  const resp = await fetch(`${API_BASE}/api/journeys`, {
+  const resp = await fetch(`${API_BASE}/api/players/me/journeys`, {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
@@ -131,7 +131,7 @@ export async function confirmPendingJourney(
   input: { igdbId?: number; game: string; coverUrl?: string; genres: string[]; log?: string },
 ): Promise<void> {
   if (!input.igdbId) throw new Error("confirmPendingJourney: igdbId is required");
-  const resp = await fetch(`${API_BASE}/api/pending-journeys/${pendingId}/confirm`, {
+  const resp = await fetch(`${API_BASE}/api/players/me/journeys/pending/${pendingId}/confirm`, {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
@@ -148,7 +148,7 @@ export async function confirmPendingJourney(
 }
 
 export async function dismissPendingJourney(pendingId: string): Promise<void> {
-  const resp = await fetch(`${API_BASE}/api/pending-journeys/${pendingId}/discard`, {
+  const resp = await fetch(`${API_BASE}/api/players/me/journeys/pending/${pendingId}/discard`, {
     method: "POST",
     credentials: "include",
   });
@@ -159,7 +159,7 @@ export async function dismissPendingJourney(pendingId: string): Promise<void> {
 }
 
 export async function excludePendingJourney(pendingId: string): Promise<void> {
-  const resp = await fetch(`${API_BASE}/api/pending-journeys/${pendingId}/exclude`, {
+  const resp = await fetch(`${API_BASE}/api/players/me/journeys/pending/${pendingId}/exclude`, {
     method: "POST",
     credentials: "include",
   });
@@ -220,7 +220,7 @@ export async function postComment(journeyId: string, text: string): Promise<void
 }
 
 export async function deleteJourney(journeyId: string): Promise<void> {
-  const resp = await fetch(`${API_BASE}/api/journeys/${journeyId}`, {
+  const resp = await fetch(`${API_BASE}/api/players/me/journeys/${journeyId}`, {
     method: "DELETE",
     credentials: "include",
   });

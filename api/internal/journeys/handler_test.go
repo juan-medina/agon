@@ -14,7 +14,7 @@ func TestAdd_unauthenticated(t *testing.T) {
 	mux := http.NewServeMux()
 	h.Register(mux)
 
-	r := httptest.NewRequest(http.MethodPost, "/api/journeys",
+	r := httptest.NewRequest(http.MethodPost, "/api/players/me/journeys",
 		strings.NewReader(`{"igdb_id":1,"started_at":"2026-05-23T10:00:00Z","ended_at":"2026-05-23T13:00:00Z"}`))
 	r.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
@@ -30,7 +30,7 @@ func TestDiscard_unauthenticated(t *testing.T) {
 	mux := http.NewServeMux()
 	h.Register(mux)
 
-	r := httptest.NewRequest(http.MethodPost, "/api/pending-journeys/some-id/discard", nil)
+	r := httptest.NewRequest(http.MethodPost, "/api/players/me/journeys/pending/some-id/discard", nil)
 	w := httptest.NewRecorder()
 	mux.ServeHTTP(w, r)
 
@@ -44,7 +44,7 @@ func TestConfirm_unauthenticated(t *testing.T) {
 	mux := http.NewServeMux()
 	h.Register(mux)
 
-	r := httptest.NewRequest(http.MethodPost, "/api/pending-journeys/some-id/confirm",
+	r := httptest.NewRequest(http.MethodPost, "/api/players/me/journeys/pending/some-id/confirm",
 		strings.NewReader(`{"igdb_id":1}`))
 	r.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
@@ -60,7 +60,7 @@ func TestDelete_unauthenticated(t *testing.T) {
 	mux := http.NewServeMux()
 	h.Register(mux)
 
-	r := httptest.NewRequest(http.MethodDelete, "/api/journeys/some-id", nil)
+	r := httptest.NewRequest(http.MethodDelete, "/api/players/me/journeys/some-id", nil)
 	w := httptest.NewRecorder()
 	mux.ServeHTTP(w, r)
 
@@ -74,7 +74,7 @@ func TestListPending_unauthenticated(t *testing.T) {
 	mux := http.NewServeMux()
 	h.Register(mux)
 
-	r := httptest.NewRequest(http.MethodGet, "/api/pending-journeys", nil)
+	r := httptest.NewRequest(http.MethodGet, "/api/players/me/journeys/pending", nil)
 	w := httptest.NewRecorder()
 	mux.ServeHTTP(w, r)
 
@@ -88,7 +88,7 @@ func TestListMine_unauthenticated(t *testing.T) {
 	mux := http.NewServeMux()
 	h.Register(mux)
 
-	r := httptest.NewRequest(http.MethodGet, "/api/players/journeys", nil)
+	r := httptest.NewRequest(http.MethodGet, "/api/players/me/journeys", nil)
 	w := httptest.NewRecorder()
 	mux.ServeHTTP(w, r)
 
@@ -102,7 +102,7 @@ func TestExclude_unauthenticated(t *testing.T) {
 	mux := http.NewServeMux()
 	h.Register(mux)
 
-	r := httptest.NewRequest(http.MethodPost, "/api/pending-journeys/some-id/exclude", nil)
+	r := httptest.NewRequest(http.MethodPost, "/api/players/me/journeys/pending/some-id/exclude", nil)
 	w := httptest.NewRecorder()
 	mux.ServeHTTP(w, r)
 

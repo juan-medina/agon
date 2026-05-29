@@ -305,7 +305,7 @@ GET /journeys/:id
 ### Log a journey manually
 
 ```
-POST /journeys
+POST /players/me/journeys
 ```
 
 Creates a confirmed journey directly. No pending step.
@@ -328,7 +328,7 @@ Creates a confirmed journey directly. No pending step.
 ### Delete a journey
 
 ```
-DELETE /journeys/:id
+DELETE /players/me/journeys/:id
 ```
 
 **Response** — `204 No Content`
@@ -342,7 +342,7 @@ Pending journeys are created by the agent when a game is detected. They are priv
 ### List pending journeys
 
 ```
-GET /pending-journeys
+GET /players/me/journeys/pending
 ```
 
 Returns the authenticated user's pending journeys with status `active` or `ended`, reverse chronological.
@@ -355,7 +355,52 @@ Returns the authenticated user's pending journeys with status `active` or `ended
 }
 ```
 
-### Create a pending journey
+### Confirm a pending journey
+
+```
+POST /players/me/journeys/pending/:id/confirm
+```
+
+User confirms the journey. Writes the confirmed journey row and deletes the pending row.
+
+**Body**
+
+```json
+{
+  "igdb_id": 119388,
+  "log": "Finally beat the final boss."
+}
+```
+
+`log` is optional. `igdb_id` is required — the user must confirm or correct the game match.
+
+**Response** — `Journey`
+
+### Discard a pending journey
+
+```
+POST /players/me/journeys/pending/:id/discard
+```
+
+User discards the journey. Deletes the pending row with no further action.
+
+**Response** — `204 No Content`
+
+### Exclude an executable
+
+```
+POST /players/me/journeys/pending/:id/exclude
+```
+
+Adds the pending journey's executable to the user's exclusion list and discards the journey. Future detections of this executable are silently ignored.
+
+**Response** — `204 No Content`
+
+### Agent routes
+
+These routes are called by the desktop agent, not the web app.
+
+#### Create a pending journey
 
 ```
 POST /pending-journeys
@@ -384,7 +429,7 @@ Called by the agent when a game is detected.
 }
 ```
 
-### Heartbeat a pending journey
+#### Heartbeat a pending journey
 
 ```
 POST /pending-journeys/:id/heartbeat
@@ -394,7 +439,7 @@ Called by the agent every 10 minutes while the game is running. Prevents evictio
 
 **Response** — `204 No Content`
 
-### End a pending journey
+#### End a pending journey
 
 ```
 POST /pending-journeys/:id/end
@@ -409,47 +454,6 @@ Called by the agent when the game process closes.
   "ended_at": "2026-05-23T16:14:00Z"
 }
 ```
-
-**Response** — `204 No Content`
-
-### Confirm a pending journey
-
-```
-POST /pending-journeys/:id/confirm
-```
-
-User confirms the journey. Writes the confirmed journey row and deletes the pending row.
-
-**Body**
-
-```json
-{
-  "igdb_id": 119388,
-  "log": "Finally beat the final boss."
-}
-```
-
-`log` is optional. `igdb_id` is required — the user must confirm or correct the game match.
-
-**Response** — `Journey`
-
-### Discard a pending journey
-
-```
-POST /pending-journeys/:id/discard
-```
-
-User discards the journey. Deletes the pending row with no further action.
-
-**Response** — `204 No Content`
-
-### Exclude an executable
-
-```
-POST /pending-journeys/:id/exclude
-```
-
-Adds the pending journey's executable to the user's exclusion list and discards the journey. Future detections of this executable are silently ignored.
 
 **Response** — `204 No Content`
 

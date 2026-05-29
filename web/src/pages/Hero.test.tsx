@@ -33,7 +33,7 @@ function mockApime(overrides?: { bio?: string }) {
       if (body.bio !== undefined) currentBio = body.bio;
       return new Response(null, { status: 204 });
     }
-    if (url.includes("/api/players/journeys") && (!init?.method || init.method === "GET")) {
+    if (url.includes("/api/players/me/journeys") && (!init?.method || init.method === "GET")) {
       const journeys = MY_SESSIONS.map((j) => ({
         id: j.id,
         igdb_id: 1,
