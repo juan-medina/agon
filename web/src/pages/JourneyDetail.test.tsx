@@ -3,11 +3,59 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router";
-import { MOCK_COMMENTS, MOCK_OTHERS_ON_JOURNEY, MY_PLAYER_ID, JOURNEYS } from "@/lib/mock";
+import { MOCK_COMMENTS, MOCK_OTHERS_ON_JOURNEY, MY_PLAYER_ID, MY_PLAYER, JOURNEYS } from "@/lib/mock";
 import { _reset as resetJourneys } from "@/services/journeys";
 import { _reset as resetPlayers } from "@/services/players";
 import { renderWithProviders } from "@/test/utils";
 import JourneyDetail from "./JourneyDetail";
+
+const s1 = JOURNEYS.find((j) => j.id === "s1")!;
+const s2 = JOURNEYS.find((j) => j.id === "s2")!;
+
+function journeyResponse(j: typeof s1, igdbId: number, durationSeconds: number) {
+  return JSON.stringify({
+    id: j.id, igdb_id: igdbId, game: j.game,
+    cover_url: j.coverUrl ?? null, genres: j.genres,
+    duration_seconds: durationSeconds, log: j.log ?? null,
+    played_at: j.playedAt.toISOString(),
+    player: { id: j.player.id, handle: j.player.handle, name: j.player.name, avatar_url: null, color: j.player.color },
+  });
+}
+
+function makeFetch() {
+  return vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = input.toString();
+    const method = init?.method ?? "GET";
+    const json = (body: string) => new Response(body, { status: 200, headers: { "Content-Type": "application/json" } });
+
+    if (url.includes("/api/me") && method === "GET") {
+      return json(JSON.stringify({ id: MY_PLAYER.id, name: MY_PLAYER.name, handle: MY_PLAYER.handle, avatar_url: null, bio: null, color: MY_PLAYER.color }));
+    }
+    if (/\/api\/journeys\/s1\/players/.test(url)) {
+      return json(JSON.stringify({
+        players: MOCK_OTHERS_ON_JOURNEY.map((p) => ({
+          journey_id: `j_${p.player.id}`,
+          player: { id: p.player.id, handle: p.player.handle, name: p.player.name, avatar_url: null, color: p.player.color },
+          duration_seconds: 3600,
+          played_at: new Date().toISOString(),
+        })),
+      }));
+    }
+    if (/\/api\/journeys\/\w+\/players/.test(url)) {
+      return json(JSON.stringify({ players: [] }));
+    }
+    if (/\/api\/journeys\/s1$/.test(url) && method === "GET") {
+      return json(journeyResponse(s1, 1001, 11640));
+    }
+    if (/\/api\/journeys\/s2$/.test(url) && method === "GET") {
+      return json(journeyResponse(s2, 1002, 16200));
+    }
+    if (/\/api\/players\/me\/journeys\/s1$/.test(url) && method === "DELETE") {
+      return new Response(null, { status: 204 });
+    }
+    return new Response("not found", { status: 404 });
+  });
+}
 
 function renderJourney(id: string) {
   return renderWithProviders(
@@ -22,6 +70,7 @@ function renderJourney(id: string) {
 beforeEach(() => {
   resetJourneys();
   resetPlayers();
+  vi.stubGlobal("fetch", makeFetch());
 });
 
 describe("JourneyDetail", () => {
@@ -31,9 +80,8 @@ describe("JourneyDetail", () => {
   });
 
   it("renders the journey game title for a known journey", async () => {
-    const journey = JOURNEYS.find((j) => j.id === "s1")!;
-    renderJourney(journey.id);
-    expect(await screen.findByRole("heading", { name: journey.game })).toBeInTheDocument();
+    renderJourney("s1");
+    expect(await screen.findByRole("heading", { name: s1.game })).toBeInTheDocument();
   });
 
   it("liking a journey increments the displayed count by one", async () => {
@@ -76,13 +124,13 @@ describe("JourneyDetail", () => {
     expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
   });
 
-  it("shows Follow only for Others players, not Friends on this journey", async () => {
+  it("shows Follow for each player on this journey", async () => {
     renderJourney("s1"); // s1 is my journey — no owner Follow button
     const buttons = await screen.findAllByRole("button", { name: "Follow" });
     expect(buttons).toHaveLength(MOCK_OTHERS_ON_JOURNEY.length);
   });
 
-  it("clicking Follow on an Others player toggles to Following", async () => {
+  it("clicking Follow on a player toggles to Following", async () => {
     const user = userEvent.setup();
     renderJourney("s1");
     const followButtons = await screen.findAllByRole("button", { name: "Follow" });

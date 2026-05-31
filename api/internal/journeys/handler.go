@@ -31,6 +31,7 @@ func NewHandler(pool *pgxpool.Pool, jwtPriv ed25519.PrivateKey) *Handler {
 // Register mounts journey routes on mux.
 func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/journeys/{id}", h.get)
+	mux.HandleFunc("GET /api/journeys/{id}/players", h.players)
 	mux.HandleFunc("POST /api/players/me/journeys", h.add)
 	mux.HandleFunc("DELETE /api/players/me/journeys/{id}", h.delete)
 	mux.HandleFunc("GET /api/players/me/journeys", h.listMine)
@@ -85,6 +86,43 @@ func (h *Handler) get(w http.ResponseWriter, r *http.Request) {
 			Color:     j.PlayerColor,
 		},
 	})
+}
+
+func (h *Handler) players(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	others, err := db.ListOthersOnJourney(r.Context(), h.pool, id)
+	if err != nil {
+		log.Printf("journeys/players: %v", err)
+		http.Error(w, `{"error":"internal_error"}`, http.StatusInternalServerError)
+		return
+	}
+
+	type playerResp struct {
+		ID        string  `json:"id"`
+		Handle    string  `json:"handle"`
+		Name      string  `json:"name"`
+		AvatarURL *string `json:"avatar_url,omitempty"`
+		Color     string  `json:"color"`
+	}
+	type entryResp struct {
+		JourneyID       string     `json:"journey_id"`
+		Player          playerResp `json:"player"`
+		DurationSeconds int        `json:"duration_seconds"`
+		PlayedAt        string     `json:"played_at"`
+	}
+
+	resp := make([]entryResp, 0, len(others))
+	for _, p := range others {
+		resp = append(resp, entryResp{
+			JourneyID:       p.JourneyID,
+			Player:          playerResp{ID: p.UserID, Handle: p.Handle, Name: p.Name, AvatarURL: p.AvatarURL, Color: p.Color},
+			DurationSeconds: p.DurationSeconds,
+			PlayedAt:        p.PlayedAt.UTC().Format(time.RFC3339),
+		})
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{"players": resp})
 }
 
 func (h *Handler) authenticate(w http.ResponseWriter, r *http.Request) (string, bool) {

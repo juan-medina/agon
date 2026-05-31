@@ -7,13 +7,10 @@ import type { Player } from "@/models/player";
 import {
   MOCK_COMMENTS,
   MOCK_LIKERS,
-  MOCK_FRIENDS_ON_JOURNEY,
-  MOCK_OTHERS_ON_JOURNEY,
   MOCK_PENDING_JOURNEYS,
 } from "@/lib/mock";
 import { API_BASE } from "@/lib/api";
 import { formatDuration } from "@/lib/time";
-import { isFollowingHandle } from "./players";
 import { getCurrentPlayer } from "./auth";
 
 export const likedIds = new Set<string>();
@@ -190,8 +187,6 @@ export async function excludePendingJourney(pendingId: string): Promise<void> {
 
 let _comments: Comment[] = [...MOCK_COMMENTS];
 const _likers: Player[] = [...MOCK_LIKERS];
-const _friendsOnJourney = [...MOCK_FRIENDS_ON_JOURNEY];
-const _othersOnJourney = [...MOCK_OTHERS_ON_JOURNEY];
 const extraComments = new Map<string, Comment[]>();
 
 export async function getJourney(id: string): Promise<Journey | undefined> {
@@ -228,20 +223,35 @@ export async function getLikers(_journeyId: string): Promise<Player[]> {
   return [..._likers];
 }
 
-export async function getJourneyPlayers(_journeyId: string): Promise<{
+export async function getJourneyPlayers(journeyId: string): Promise<{
   friends: JourneyPlayer[];
   others: JourneyPlayer[];
 }> {
-  return {
-    friends: _friendsOnJourney.map((jp) => ({
-      ...jp,
-      isFollowing: isFollowingHandle(jp.player.handle),
-    })),
-    others: _othersOnJourney.map((jp) => ({
-      ...jp,
-      isFollowing: isFollowingHandle(jp.player.handle),
-    })),
-  };
+  const resp = await fetch(`${API_BASE}/api/journeys/${journeyId}/players`, { credentials: "include" });
+  if (!resp.ok) throw new Error(`get journey players: ${resp.status}`);
+  const data: {
+    players: {
+      journey_id: string;
+      player: { id: string; handle: string; name: string; avatar_url?: string; color: string };
+      duration_seconds: number;
+      played_at: string;
+    }[];
+  } = await resp.json();
+
+  const others: JourneyPlayer[] = (data.players ?? []).map((p) => ({
+    player: {
+      id: p.player.id,
+      handle: p.player.handle,
+      name: p.player.name,
+      avatarUrl: p.player.avatar_url,
+      color: p.player.color,
+    },
+    duration: formatDuration(p.duration_seconds),
+    playedAt: new Date(p.played_at),
+    isFollowing: false,
+  }));
+
+  return { friends: [], others };
 }
 
 export async function postComment(journeyId: string, text: string): Promise<void> {

@@ -29,18 +29,18 @@ export function isFollowingHandle(handle: string): boolean {
   return followingHandles.has(handle);
 }
 
-export async function getPlayer(handle: string): Promise<Player | undefined> {
-  const fromPlayers = _players.find((p) => p.handle === handle);
+export async function getPlayer(id: string): Promise<Player | undefined> {
+  const fromPlayers = _players.find((p) => p.id === id);
   if (fromPlayers) return fromPlayers;
-  const fromJourneys = _journeys.find((j) => j.player.handle === handle)?.player;
+  const fromJourneys = _journeys.find((j) => j.player.id === id)?.player;
   if (fromJourneys) return fromJourneys;
   return _gameActivity.flatMap((g) => g.entries)
-    .find((e) => e.player.handle === handle)?.player;
+    .find((e) => e.player.id === id)?.player;
 }
 
-export async function getPlayerJourneys(handle: string): Promise<Journey[]> {
+export async function getPlayerJourneys(id: string): Promise<Journey[]> {
   return _journeys
-    .filter((j) => j.player.handle === handle)
+    .filter((j) => j.player.id === id)
     .map((j) => ({ ...j, liked: likedIds.has(j.id) }));
 }
 

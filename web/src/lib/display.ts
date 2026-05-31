@@ -28,5 +28,5 @@ export function initials(name: string): string {
 }
 
 export function playerHref(player: Player, currentUserId: string): string {
-  return player.id === currentUserId ? "/hero" : `/player/${player.handle}`;
+  return player.id === currentUserId ? "/hero" : `/player/${player.id}`;
 }

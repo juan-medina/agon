@@ -13,20 +13,20 @@ import { formatJourneyDate } from "@/lib/time";
 import type { Player } from "@/models";
 
 export default function PlayerProfile() {
-  const { handle } = useParams<{ handle: string }>();
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
   const { data: player } = useQuery({
-    queryKey: ["player", handle],
-    queryFn: () => getPlayer(handle!),
-    enabled: !!handle,
+    queryKey: ["player", id],
+    queryFn: () => getPlayer(id!),
+    enabled: !!id,
   });
 
   const { data: journeys = [] } = useQuery({
-    queryKey: ["journeys", "player", handle],
-    queryFn: () => getPlayerJourneys(handle!),
-    enabled: !!handle,
+    queryKey: ["journeys", "player", id],
+    queryFn: () => getPlayerJourneys(id!),
+    enabled: !!id,
   });
 
   const { data: followers = [] } = useQuery({
@@ -42,25 +42,25 @@ export default function PlayerProfile() {
   });
 
   const { data: isFollowing = false } = useQuery({
-    queryKey: ["following", handle],
+    queryKey: ["following", player?.handle],
     queryFn: async () => {
       const { isFollowingHandle } = await import("@/services/players");
-      return isFollowingHandle(handle!);
+      return isFollowingHandle(player!.handle);
     },
-    enabled: !!handle,
+    enabled: !!player,
   });
 
   const followMutation = useMutation({
-    mutationFn: () => toggleFollow(handle!),
+    mutationFn: () => toggleFollow(player!.handle),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["following", handle] });
+      queryClient.invalidateQueries({ queryKey: ["following", player?.handle] });
       queryClient.invalidateQueries({ queryKey: ["follow-list"] });
     },
   });
 
   const likeMutation = useMutation({
     mutationFn: toggleLike,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["journeys", "player", handle] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["journeys", "player", id] }),
   });
 
   const [followList, setFollowList] = useState<{ title: string; players: Player[] } | null>(null);
@@ -73,7 +73,7 @@ export default function PlayerProfile() {
     );
   }
 
-  const showFollow = handle !== player.handle || player.id !== MY_PLAYER_ID;
+  const showFollow = player.id !== MY_PLAYER_ID;
   const isMe = player.id === MY_PLAYER_ID;
 
   return (

@@ -24,13 +24,12 @@ function PlayerAvatar({ player, size = "md" }: { player: Player; size?: "sm" | "
   );
 }
 
-function JourneyPlayerRow({ entry, journeyId }: { entry: JourneyPlayer; journeyId: string }) {
-  const queryClient = useQueryClient();
+function JourneyPlayerRow({ entry }: { entry: JourneyPlayer }) {
+  const [following, setFollowing] = useState(entry.isFollowing);
   const followMutation = useMutation({
     mutationFn: () => toggleFollow(entry.player.handle),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["journey", journeyId, "players"] }),
+    onSuccess: () => setFollowing((prev) => !prev),
   });
-  const following = entry.isFollowing;
 
   return (
     <div className="flex items-center gap-3 py-2">
@@ -49,33 +48,31 @@ function JourneyPlayerRow({ entry, journeyId }: { entry: JourneyPlayer; journeyI
           </div>
         </div>
       </Link>
-      {!entry.isFollowing && (
-        <button
-          onClick={() => followMutation.mutate()}
-          className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
-            following
-              ? "border-border bg-muted text-muted-foreground"
-              : "border-primary text-primary hover:bg-primary hover:text-primary-foreground"
-          }`}
-        >
-          {following ? (
-            <>
-              <Check size={12} />
-              Following
-            </>
-          ) : (
-            <>
-              <UserPlus size={12} />
-              Follow
-            </>
-          )}
-        </button>
-      )}
+      <button
+        onClick={() => followMutation.mutate()}
+        className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+          following
+            ? "border-border bg-muted text-muted-foreground"
+            : "border-primary text-primary hover:bg-primary hover:text-primary-foreground"
+        }`}
+      >
+        {following ? (
+          <>
+            <Check size={12} />
+            Following
+          </>
+        ) : (
+          <>
+            <UserPlus size={12} />
+            Follow
+          </>
+        )}
+      </button>
     </div>
   );
 }
 
-function CommentRow({ comment, journeyId }: { comment: Comment; journeyId: string }) {
+function CommentRow({ comment, journeyId, currentPlayerId }: { comment: Comment; journeyId: string; currentPlayerId?: string }) {
   const queryClient = useQueryClient();
   const [confirming, setConfirming] = useState(false);
   const deleteCommentMutation = useMutation({
@@ -109,7 +106,7 @@ function CommentRow({ comment, journeyId }: { comment: Comment; journeyId: strin
         ) : (
           <>
             <span className="ml-auto text-xs text-muted-foreground">{formatCommentAge(comment.commentedAt)}</span>
-            {comment.player.id === currentPlayer?.id && (
+            {comment.player.id === currentPlayerId && (
               <button
                 onClick={() => setConfirming(true)}
                 aria-label="Delete comment"
@@ -354,7 +351,7 @@ export default function JourneyDetail() {
         </div>
         <div className="divide-y divide-border px-4">
           {comments.map((c) => (
-            <CommentRow key={c.id} comment={c} journeyId={id!} />
+            <CommentRow key={c.id} comment={c} journeyId={id!} currentPlayerId={currentPlayer?.id} />
           ))}
         </div>
         <div className="border-t border-border p-4">
@@ -390,7 +387,7 @@ export default function JourneyDetail() {
             </p>
             <div className="divide-y divide-border">
               {(journeyPlayers?.friends ?? []).map((entry) => (
-                <JourneyPlayerRow key={entry.player.id} entry={entry} journeyId={id!} />
+                <JourneyPlayerRow key={entry.player.id} entry={entry} />
               ))}
             </div>
           </div>
@@ -403,7 +400,7 @@ export default function JourneyDetail() {
             </p>
             <div className="divide-y divide-border">
               {(journeyPlayers?.others ?? []).map((entry) => (
-                <JourneyPlayerRow key={entry.player.id} entry={entry} journeyId={id!} />
+                <JourneyPlayerRow key={entry.player.id} entry={entry} />
               ))}
             </div>
           </div>

@@ -174,6 +174,50 @@ func GetJourneyByID(ctx context.Context, pool *pgxpool.Pool, id string) (Journey
 	return j, err
 }
 
+// PlayerOnJourney is a player who has a journey for the same game as another journey.
+type PlayerOnJourney struct {
+	JourneyID       string
+	DurationSeconds int
+	PlayedAt        time.Time
+	UserID          string
+	Handle          string
+	Name            string
+	AvatarURL       *string
+	Color           string
+}
+
+// ListOthersOnJourney returns players who have journeys for the same IGDB game as
+// the given journey ID, excluding the journey's own owner, ordered by played_at desc.
+func ListOthersOnJourney(ctx context.Context, pool *pgxpool.Pool, journeyID string) ([]PlayerOnJourney, error) {
+	rows, err := pool.Query(ctx, `
+		WITH src AS (SELECT igdb_id, user_id FROM journeys WHERE id = $1)
+		SELECT j.id, j.duration_seconds, j.played_at,
+		       u.id, u.handle, u.name, u.avatar_url, u.color
+		FROM journeys j
+		JOIN users u ON u.id = j.user_id
+		JOIN src ON j.igdb_id = src.igdb_id AND j.user_id != src.user_id
+		ORDER BY j.played_at DESC
+		LIMIT 50
+	`, journeyID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var players []PlayerOnJourney
+	for rows.Next() {
+		var p PlayerOnJourney
+		if err := rows.Scan(
+			&p.JourneyID, &p.DurationSeconds, &p.PlayedAt,
+			&p.UserID, &p.Handle, &p.Name, &p.AvatarURL, &p.Color,
+		); err != nil {
+			return nil, err
+		}
+		players = append(players, p)
+	}
+	return players, rows.Err()
+}
+
 // ListJourneysByUser returns confirmed journeys for the given user ID joined
 // with igdb_games, ordered by played_at descending, with optional cursor-based pagination.
 func ListJourneysByUser(ctx context.Context, pool *pgxpool.Pool, userID string, limit int, cursor string) ([]Journey, error) {

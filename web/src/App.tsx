@@ -26,7 +26,7 @@ const router = createBrowserRouter([
       { path: "players", element: <Players /> },
       { path: "hero", element: <Hero /> },
       { path: "journey/:id", element: <JourneyDetail /> },
-      { path: "player/:handle", element: <PlayerProfile /> },
+      { path: "player/:id", element: <PlayerProfile /> },
       { path: "echoes", element: <Echoes /> },
       { path: "settings", element: <Settings /> },
       { path: "*", element: <NotFound /> },
