@@ -3,10 +3,43 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
-import { GAME_LIBRARY, MOCK_EXCLUSIONS, MOCK_GAME_HINTS } from "@/lib/mock";
-import { _reset as resetSettings } from "@/services/settings";
+import { vi } from "vitest";
+import { GAME_LIBRARY } from "@/lib/mock";
 import { renderWithProviders } from "@/test/utils";
 import Settings from "./Settings";
+import type { Exclusion, GameHint } from "@/models/settings";
+import { updateGameHint } from "@/services/settings";
+
+const TEST_EXCLUSIONS: Exclusion[] = [
+  { exeName: "cyberpunk2077.exe" },
+  { exeName: "svb.exe" },
+  { exeName: "launcher.exe" },
+];
+
+const TEST_HINTS: GameHint[] = [
+  { exeName: "eldenring.exe", game: "Elden Ring" },
+  { exeName: "bg3.exe", game: "Baldur's Gate 3" },
+  { exeName: "hollowknight.exe", game: "Hollow Knight" },
+];
+
+const mockState = vi.hoisted(() => ({
+  exclusions: [] as Exclusion[],
+  hints: [] as GameHint[],
+}));
+
+vi.mock("@/services/settings", () => ({
+  getExclusions: vi.fn(() => Promise.resolve([...mockState.exclusions])),
+  addExclusion: vi.fn(async () => undefined),
+  removeExclusion: vi.fn(async (exeName: string) => {
+    mockState.exclusions = mockState.exclusions.filter((e) => e.exeName !== exeName);
+  }),
+  getGameHints: vi.fn(() => Promise.resolve([...mockState.hints])),
+  addGameHint: vi.fn(async () => undefined),
+  removeGameHint: vi.fn(async (exeName: string) => {
+    mockState.hints = mockState.hints.filter((h) => h.exeName !== exeName);
+  }),
+  updateGameHint: vi.fn(async () => undefined),
+}));
 
 function renderSettings() {
   return renderWithProviders(
@@ -17,7 +50,9 @@ function renderSettings() {
 }
 
 beforeEach(() => {
-  resetSettings();
+  mockState.exclusions = [...TEST_EXCLUSIONS];
+  mockState.hints = [...TEST_HINTS];
+  vi.mocked(updateGameHint).mockImplementation(async () => undefined);
 });
 
 describe("Settings — sign out", () => {
@@ -52,7 +87,7 @@ describe("Settings — exclusions", () => {
     const user = userEvent.setup();
     renderSettings();
     await user.click(
-      await screen.findByRole("button", { name: `Remove ${MOCK_EXCLUSIONS[0].exeName}` }),
+      await screen.findByRole("button", { name: `Remove ${TEST_EXCLUSIONS[0].exeName}` }),
     );
     expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Remove" })).toBeInTheDocument();
@@ -62,11 +97,11 @@ describe("Settings — exclusions", () => {
     const user = userEvent.setup();
     renderSettings();
     await user.click(
-      await screen.findByRole("button", { name: `Remove ${MOCK_EXCLUSIONS[0].exeName}` }),
+      await screen.findByRole("button", { name: `Remove ${TEST_EXCLUSIONS[0].exeName}` }),
     );
     await user.click(screen.getByRole("button", { name: "Cancel" }));
     expect(
-      screen.getByRole("button", { name: `Remove ${MOCK_EXCLUSIONS[0].exeName}` }),
+      screen.getByRole("button", { name: `Remove ${TEST_EXCLUSIONS[0].exeName}` }),
     ).toBeInTheDocument();
   });
 
@@ -74,19 +109,19 @@ describe("Settings — exclusions", () => {
     const user = userEvent.setup();
     renderSettings();
     await user.click(
-      await screen.findByRole("button", { name: `Remove ${MOCK_EXCLUSIONS[0].exeName}` }),
+      await screen.findByRole("button", { name: `Remove ${TEST_EXCLUSIONS[0].exeName}` }),
     );
     await user.click(screen.getByRole("button", { name: "Remove" }));
     await waitFor(() =>
-      expect(screen.queryByText(MOCK_EXCLUSIONS[0].exeName)).not.toBeInTheDocument(),
+      expect(screen.queryByText(TEST_EXCLUSIONS[0].exeName)).not.toBeInTheDocument(),
     );
   });
 
   it("removing all exclusions shows empty state", async () => {
     const user = userEvent.setup();
     renderSettings();
-    await screen.findByRole("button", { name: `Remove ${MOCK_EXCLUSIONS[0].exeName}` });
-    for (const exc of MOCK_EXCLUSIONS) {
+    await screen.findByRole("button", { name: `Remove ${TEST_EXCLUSIONS[0].exeName}` });
+    for (const exc of TEST_EXCLUSIONS) {
       await user.click(screen.getByRole("button", { name: `Remove ${exc.exeName}` }));
       await user.click(screen.getByRole("button", { name: "Remove" }));
     }
@@ -99,7 +134,7 @@ describe("Settings — game hints", () => {
     const user = userEvent.setup();
     renderSettings();
     await user.click(
-      await screen.findByRole("button", { name: `Remove hint for ${MOCK_GAME_HINTS[0].exeName}` }),
+      await screen.findByRole("button", { name: `Remove hint for ${TEST_HINTS[0].exeName}` }),
     );
     expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Remove" })).toBeInTheDocument();
@@ -109,11 +144,11 @@ describe("Settings — game hints", () => {
     const user = userEvent.setup();
     renderSettings();
     await user.click(
-      await screen.findByRole("button", { name: `Remove hint for ${MOCK_GAME_HINTS[0].exeName}` }),
+      await screen.findByRole("button", { name: `Remove hint for ${TEST_HINTS[0].exeName}` }),
     );
     await user.click(screen.getByRole("button", { name: "Cancel" }));
     expect(
-      screen.getByRole("button", { name: `Remove hint for ${MOCK_GAME_HINTS[0].exeName}` }),
+      screen.getByRole("button", { name: `Remove hint for ${TEST_HINTS[0].exeName}` }),
     ).toBeInTheDocument();
   });
 
@@ -121,19 +156,19 @@ describe("Settings — game hints", () => {
     const user = userEvent.setup();
     renderSettings();
     await user.click(
-      await screen.findByRole("button", { name: `Remove hint for ${MOCK_GAME_HINTS[0].exeName}` }),
+      await screen.findByRole("button", { name: `Remove hint for ${TEST_HINTS[0].exeName}` }),
     );
     await user.click(screen.getByRole("button", { name: "Remove" }));
     await waitFor(() =>
-      expect(screen.queryByText(MOCK_GAME_HINTS[0].exeName)).not.toBeInTheDocument(),
+      expect(screen.queryByText(TEST_HINTS[0].exeName)).not.toBeInTheDocument(),
     );
   });
 
   it("removing all hints shows empty state", async () => {
     const user = userEvent.setup();
     renderSettings();
-    await screen.findByRole("button", { name: `Remove hint for ${MOCK_GAME_HINTS[0].exeName}` });
-    for (const hint of MOCK_GAME_HINTS) {
+    await screen.findByRole("button", { name: `Remove hint for ${TEST_HINTS[0].exeName}` });
+    for (const hint of TEST_HINTS) {
       await user.click(screen.getByRole("button", { name: `Remove hint for ${hint.exeName}` }));
       await user.click(screen.getByRole("button", { name: "Remove" }));
     }
@@ -146,7 +181,7 @@ describe("Settings — game hint editing", () => {
     const user = userEvent.setup();
     renderSettings();
     await user.click(
-      await screen.findByRole("button", { name: `Edit hint for ${MOCK_GAME_HINTS[0].exeName}` }),
+      await screen.findByRole("button", { name: `Edit hint for ${TEST_HINTS[0].exeName}` }),
     );
     expect(screen.getByPlaceholderText("Search for a game…")).toBeInTheDocument();
   });
@@ -155,12 +190,12 @@ describe("Settings — game hint editing", () => {
     const user = userEvent.setup();
     renderSettings();
     await user.click(
-      await screen.findByRole("button", { name: `Edit hint for ${MOCK_GAME_HINTS[0].exeName}` }),
+      await screen.findByRole("button", { name: `Edit hint for ${TEST_HINTS[0].exeName}` }),
     );
     await user.click(screen.getByRole("button", { name: "Cancel" }));
     expect(screen.queryByPlaceholderText("Search for a game…")).not.toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: `Edit hint for ${MOCK_GAME_HINTS[0].exeName}` }),
+      screen.getByRole("button", { name: `Edit hint for ${TEST_HINTS[0].exeName}` }),
     ).toBeInTheDocument();
   });
 
@@ -168,19 +203,25 @@ describe("Settings — game hint editing", () => {
     const user = userEvent.setup();
     renderSettings();
     await user.click(
-      await screen.findByRole("button", { name: `Edit hint for ${MOCK_GAME_HINTS[0].exeName}` }),
+      await screen.findByRole("button", { name: `Edit hint for ${TEST_HINTS[0].exeName}` }),
     );
-    const matching = GAME_LIBRARY.find((g) => g.game !== MOCK_GAME_HINTS[0].game)!;
+    const matching = GAME_LIBRARY.find((g) => g.game !== TEST_HINTS[0].game)!;
     await user.type(screen.getByPlaceholderText("Search for a game…"), matching.game.slice(0, 4));
     expect(await screen.findByRole("button", { name: matching.game })).toBeInTheDocument();
   });
 
   it("selecting a game updates the hint and closes the editor", async () => {
     const user = userEvent.setup();
+    const hint = TEST_HINTS[0];
+    const newGame = GAME_LIBRARY.find((g) => !TEST_HINTS.some((h) => h.game === g.game))!;
+
+    vi.mocked(updateGameHint).mockImplementationOnce(async (exeName: string) => {
+      mockState.hints = mockState.hints.map((h) =>
+        h.exeName === exeName ? { ...h, game: newGame.game } : h,
+      );
+    });
+
     renderSettings();
-    const hint = MOCK_GAME_HINTS[0];
-    const otherGames = MOCK_GAME_HINTS.map((h) => h.game);
-    const newGame = GAME_LIBRARY.find((g) => !otherGames.includes(g.game))!;
     await user.click(
       await screen.findByRole("button", { name: `Edit hint for ${hint.exeName}` }),
     );

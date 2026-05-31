@@ -452,6 +452,12 @@ func (h *Handler) confirm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if pending.ExeName != nil {
+		if err := db.UpsertGameHint(r.Context(), h.pool, userID, *pending.ExeName, *body.IGDBID); err != nil {
+			log.Printf("journeys/confirm: upsert hint for %s: %v", *pending.ExeName, err)
+		}
+	}
+
 	if err := db.DeletePendingJourney(r.Context(), h.pool, id, userID); err != nil {
 		log.Printf("journeys/confirm: delete pending %s: %v", id, err)
 	}

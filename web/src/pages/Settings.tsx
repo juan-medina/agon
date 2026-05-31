@@ -48,7 +48,8 @@ export default function Settings() {
   });
 
   const updateHintMutation = useMutation({
-    mutationFn: ({ exeName, game }: { exeName: string; game: string }) => updateGameHint(exeName, game),
+    mutationFn: ({ exeName, igdbId }: { exeName: string; igdbId: number }) =>
+      updateGameHint(exeName, igdbId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["settings", "hints"] });
       setEditingHintExe(null);
@@ -243,7 +244,7 @@ export default function Settings() {
                             <button
                               key={g.id}
                               type="button"
-                              onClick={() => updateHintMutation.mutate({ exeName: hint.exeName, game: g.game })}
+                              onClick={() => updateHintMutation.mutate({ exeName: hint.exeName, igdbId: parseInt(g.id) })}
                               className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-accent/10"
                             >
                               {g.game}

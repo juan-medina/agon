@@ -19,6 +19,7 @@ import (
 	"github.com/juan-medina/agon/internal/games"
 	"github.com/juan-medina/agon/internal/journeys"
 	"github.com/juan-medina/agon/internal/profile"
+	"github.com/juan-medina/agon/internal/settings"
 )
 
 func main() {
@@ -54,6 +55,7 @@ func main() {
 	games.NewHandler(igdbClient, pool).Register(mux)
 	journeys.NewHandler(pool, jwtPriv).Register(mux)
 	echoes.NewHandler(pool, jwtPriv).Register(mux)
+	settings.NewHandler(pool, jwtPriv).Register(mux)
 	admin.NewHandler(pool, jwtPriv).Register(mux)
 
 	log.Printf("listening on %s (frontend: %s)", addr, cfg.FrontendURL)

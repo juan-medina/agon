@@ -2,44 +2,64 @@
 // SPDX-License-Identifier: MIT
 
 import type { Exclusion, GameHint } from "@/models/settings";
-import { MOCK_EXCLUSIONS, MOCK_GAME_HINTS } from "@/lib/mock";
+import { API_BASE } from "@/lib/api";
 
-let _exclusions: Exclusion[] = [...MOCK_EXCLUSIONS];
-let _hints: GameHint[] = [...MOCK_GAME_HINTS];
+type RawExclusion = { exe_name: string };
+type RawHint = { exe_name: string; igdb_id: number; title: string };
 
 export async function getExclusions(): Promise<Exclusion[]> {
-  return [..._exclusions];
+  const resp = await fetch(`${API_BASE}/api/settings/exclusions`, { credentials: "include" });
+  if (!resp.ok) throw new Error(`get exclusions: ${resp.status}`);
+  const data: { exclusions: RawExclusion[] } = await resp.json();
+  return (data.exclusions ?? []).map((e) => ({ exeName: e.exe_name }));
 }
 
 export async function addExclusion(exeName: string): Promise<void> {
-  if (!_exclusions.find((e) => e.exeName === exeName)) {
-    _exclusions = [..._exclusions, { exeName }];
-  }
+  const resp = await fetch(`${API_BASE}/api/settings/exclusions`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ exe_name: exeName }),
+  });
+  if (!resp.ok) throw new Error(`add exclusion: ${resp.status}`);
 }
 
 export async function removeExclusion(exeName: string): Promise<void> {
-  _exclusions = _exclusions.filter((e) => e.exeName !== exeName);
+  const resp = await fetch(
+    `${API_BASE}/api/settings/exclusions/${encodeURIComponent(exeName)}`,
+    { method: "DELETE", credentials: "include" },
+  );
+  if (!resp.ok) throw new Error(`remove exclusion: ${resp.status}`);
 }
 
 export async function getGameHints(): Promise<GameHint[]> {
-  return [..._hints];
+  const resp = await fetch(`${API_BASE}/api/settings/hints`, { credentials: "include" });
+  if (!resp.ok) throw new Error(`get hints: ${resp.status}`);
+  const data: { hints: RawHint[] } = await resp.json();
+  return (data.hints ?? []).map((h) => ({ exeName: h.exe_name, game: h.title }));
 }
 
-export async function addGameHint(exeName: string, game: string): Promise<void> {
-  if (!_hints.find((h) => h.exeName === exeName)) {
-    _hints = [..._hints, { exeName, game }];
-  }
+export async function addGameHint(exeName: string, igdbId: number): Promise<void> {
+  const resp = await fetch(
+    `${API_BASE}/api/settings/hints/${encodeURIComponent(exeName)}`,
+    {
+      method: "PUT",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ igdb_id: igdbId }),
+    },
+  );
+  if (!resp.ok) throw new Error(`add hint: ${resp.status}`);
 }
 
 export async function removeGameHint(exeName: string): Promise<void> {
-  _hints = _hints.filter((h) => h.exeName !== exeName);
+  const resp = await fetch(
+    `${API_BASE}/api/settings/hints/${encodeURIComponent(exeName)}`,
+    { method: "DELETE", credentials: "include" },
+  );
+  if (!resp.ok) throw new Error(`remove hint: ${resp.status}`);
 }
 
-export async function updateGameHint(exeName: string, game: string): Promise<void> {
-  _hints = _hints.map((h) => (h.exeName === exeName ? { ...h, game } : h));
-}
-
-export function _reset(): void {
-  _exclusions = [...MOCK_EXCLUSIONS];
-  _hints = [...MOCK_GAME_HINTS];
+export async function updateGameHint(exeName: string, igdbId: number): Promise<void> {
+  return addGameHint(exeName, igdbId);
 }

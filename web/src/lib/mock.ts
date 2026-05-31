@@ -5,7 +5,6 @@ import type { Player } from "@/models/player";
 import type { Journey, PendingJourney } from "@/models/journey";
 import type { Echo } from "@/models/echo";
 import type { Game, GameActivity, Comment, JourneyPlayer } from "@/models/game";
-import type { Exclusion, GameHint } from "@/models/settings";
 
 export const PLAYERS: Player[] = [
   {
@@ -376,14 +375,3 @@ export const MOCK_GAME_ACTIVITY: GameActivity[] = [
   },
 ];
 
-export const MOCK_EXCLUSIONS: Exclusion[] = [
-  { exeName: "cyberpunk2077.exe" },
-  { exeName: "svb.exe" },
-  { exeName: "launcher.exe" },
-];
-
-export const MOCK_GAME_HINTS: GameHint[] = [
-  { exeName: "eldenring.exe", game: "Elden Ring" },
-  { exeName: "bg3.exe", game: "Baldur's Gate 3" },
-  { exeName: "hollowknight.exe", game: "Hollow Knight" },
-];
