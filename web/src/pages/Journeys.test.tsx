@@ -3,8 +3,7 @@
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
-import { MOCK_PENDING_JOURNEYS } from "@/lib/mock";
-import { _reset as resetJourneys } from "@/services/journeys";
+import { MOCK_PENDING_JOURNEYS } from "@/test/fixtures";
 import { renderWithProviders } from "@/test/utils";
 import Journeys from "./Journeys";
 
@@ -15,10 +14,6 @@ function renderJourneys() {
     </MemoryRouter>,
   );
 }
-
-beforeEach(() => {
-  resetJourneys();
-});
 
 describe("Journeys — pending actions", () => {
   it("discarding a pending journey removes it from the list", async () => {

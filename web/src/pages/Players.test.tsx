@@ -3,7 +3,7 @@
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
-import { MOCK_GAME_ACTIVITY } from "@/lib/mock";
+import { MOCK_GAME_ACTIVITY } from "@/test/fixtures";
 import { playerHref } from "@/lib/display";
 import { MY_PLAYER_ID } from "@/services/auth";
 import { renderWithProviders } from "@/test/utils";

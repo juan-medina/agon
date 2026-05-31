@@ -7,7 +7,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getCurrentPlayer, signOut } from "@/services/auth";
 import { listAdminUsers, impersonateUser } from "@/services/admin";
 import { getExclusions, removeExclusion, getGameHints, removeGameHint, updateGameHint } from "@/services/settings";
-import { getGameLibrary } from "@/services/games";
+import { searchGames } from "@/services/games";
 import { avatarSrc, initials } from "@/lib/display";
 import type { Player } from "@/models/player";
 
@@ -23,13 +23,18 @@ export default function Settings() {
   });
   const { data: exclusions = [] } = useQuery({ queryKey: ["settings", "exclusions"], queryFn: getExclusions });
   const { data: hints = [] } = useQuery({ queryKey: ["settings", "hints"], queryFn: getGameHints });
-  const { data: games = [] } = useQuery({ queryKey: ["games"], queryFn: getGameLibrary });
 
   const [confirmingExe, setConfirmingExe] = useState<string | null>(null);
   const [confirmingHintExe, setConfirmingHintExe] = useState<string | null>(null);
   const [editingHintExe, setEditingHintExe] = useState<string | null>(null);
   const [editQuery, setEditQuery] = useState("");
   const [confirmingSignOut, setConfirmingSignOut] = useState(false);
+
+  const { data: editGameResults = [] } = useQuery({
+    queryKey: ["games", "search", editQuery],
+    queryFn: () => searchGames(editQuery),
+    enabled: editingHintExe !== null && editQuery.length >= 2,
+  });
 
   const removeExclusionMutation = useMutation({
     mutationFn: removeExclusion,
@@ -66,11 +71,6 @@ export default function Settings() {
     mutationFn: (userId: string) => impersonateUser(userId),
     onSuccess: () => { window.location.href = "/"; },
   });
-
-  const editGameResults =
-    editingHintExe !== null && editQuery.length >= 2
-      ? games.filter((g) => g.game.toLowerCase().includes(editQuery.toLowerCase())).slice(0, 5)
-      : [];
 
   if (!player) return null;
 

@@ -3,7 +3,7 @@
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router";
-import { MOCK_FRIENDS_ON_JOURNEY, MY_PLAYER_ID, PLAYERS, JOURNEYS } from "@/lib/mock";
+import { MOCK_FRIENDS_ON_JOURNEY, MY_PLAYER_ID, PLAYERS, JOURNEYS } from "@/test/fixtures";
 import { _reset as resetPlayers } from "@/services/players";
 import { renderWithProviders } from "@/test/utils";
 import PlayerProfile from "./PlayerProfile";

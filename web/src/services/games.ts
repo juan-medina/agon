@@ -2,33 +2,22 @@
 // SPDX-License-Identifier: MIT
 
 import type { Game, GameActivity } from "@/models/game";
-import { GAME_LIBRARY } from "@/lib/mock";
 import { API_BASE } from "@/lib/api";
 import { formatDuration } from "@/lib/time";
 
-const _library: Game[] = [...GAME_LIBRARY];
-
-export async function getGameLibrary(): Promise<Game[]> {
-  return [..._library];
-}
-
 export async function searchGames(query: string): Promise<Game[]> {
   if (query.length < 2) return [];
-  try {
-    const resp = await fetch(`${API_BASE}/api/games/search?q=${encodeURIComponent(query)}`, {
-      credentials: "include",
-    });
-    if (!resp.ok) throw new Error(`game search failed: ${resp.status}`);
-    const raw: { id: string; name: string; cover_url?: string; genres: string[] }[] = await resp.json();
-    return raw.map((g) => ({
-      id: g.id,
-      game: g.name,
-      coverUrl: g.cover_url,
-      genres: g.genres ?? [],
-    }));
-  } catch {
-    return _library.filter((g) => g.game.toLowerCase().includes(query.toLowerCase()));
-  }
+  const resp = await fetch(`${API_BASE}/api/games/search?q=${encodeURIComponent(query)}`, {
+    credentials: "include",
+  });
+  if (!resp.ok) throw new Error(`game search failed: ${resp.status}`);
+  const raw: { id: string; name: string; cover_url?: string; genres: string[] }[] = await resp.json();
+  return raw.map((g) => ({
+    id: g.id,
+    game: g.name,
+    coverUrl: g.cover_url,
+    genres: g.genres ?? [],
+  }));
 }
 
 export async function getGameActivity(): Promise<GameActivity[]> {

@@ -4,7 +4,7 @@ import { vi } from "vitest";
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
-import { MOCK_ECHOES } from "@/lib/mock";
+import { MOCK_ECHOES } from "@/test/fixtures";
 import * as echoesService from "@/services/echoes";
 import { renderWithProviders } from "@/test/utils";
 import Echoes from "./Echoes";

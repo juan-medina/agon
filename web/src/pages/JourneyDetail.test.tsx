@@ -3,8 +3,7 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router";
-import { MOCK_COMMENTS, MOCK_OTHERS_ON_JOURNEY, MY_PLAYER_ID, MY_PLAYER, JOURNEYS, PLAYERS } from "@/lib/mock";
-import { _reset as resetJourneys } from "@/services/journeys";
+import { MOCK_COMMENTS, MOCK_OTHERS_ON_JOURNEY, MY_PLAYER_ID, MY_PLAYER, JOURNEYS, PLAYERS } from "@/test/fixtures";
 import { _reset as resetPlayers } from "@/services/players";
 import { renderWithProviders } from "@/test/utils";
 import JourneyDetail from "./JourneyDetail";
@@ -146,7 +145,6 @@ beforeEach(() => {
   followedIds = new Set(initiallyFollowed);
   mockComments = [...MOCK_COMMENTS];
   likedByMe = new Set();
-  resetJourneys();
   resetPlayers();
   vi.stubGlobal("fetch", makeFetch());
 });

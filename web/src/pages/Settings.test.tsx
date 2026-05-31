@@ -4,7 +4,7 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { vi } from "vitest";
-import { GAME_LIBRARY } from "@/lib/mock";
+import { GAME_LIBRARY } from "@/test/fixtures";
 import { renderWithProviders } from "@/test/utils";
 import Settings from "./Settings";
 import type { Exclusion, GameHint } from "@/models/settings";

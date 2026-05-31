@@ -4,8 +4,7 @@ import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { vi, afterEach } from "vitest";
 import { MemoryRouter } from "react-router";
-import { MY_FOLLOWERS, MY_FOLLOWING, MY_PLAYER, MY_PLAYER_ID, JOURNEYS } from "@/lib/mock";
-import { _reset as resetJourneys } from "@/services/journeys";
+import { MY_FOLLOWERS, MY_FOLLOWING, MY_PLAYER, MY_PLAYER_ID, JOURNEYS } from "@/test/fixtures";
 import { _reset as resetPlayers } from "@/services/players";
 import { renderWithProviders } from "@/test/utils";
 import Hero from "./Hero";
@@ -58,7 +57,6 @@ function renderHero() {
 
 beforeEach(() => {
   mockApime();
-  resetJourneys();
   resetPlayers();
 });
 

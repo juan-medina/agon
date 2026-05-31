@@ -9,7 +9,9 @@ import {
   JOURNEYS,
   MOCK_GAME_ACTIVITY,
   MOCK_FOLLOW_LISTS,
-} from "@/lib/mock";
+  GAME_LIBRARY,
+  MOCK_PENDING_JOURNEYS,
+} from "@/test/fixtures";
 import type { Player } from "@/models/player";
 
 const playerMap = new Map<string, Player>();
@@ -37,9 +39,26 @@ function makeDefaultFetch() {
   const followState: Record<string, boolean> = {};
   for (const p of MY_FOLLOWING) followState[p.id] = true;
 
+  // Mutable pending journeys state for this test.
+  const pendingJourneys = [...MOCK_PENDING_JOURNEYS];
+
   return vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = input.toString();
     const method = (init?.method ?? "GET").toUpperCase();
+
+    // GET /api/games/search?q=... — must be before other game routes
+    if (url.includes("/api/games/search") && method === "GET") {
+      const q = new URL(url).searchParams.get("q") ?? "";
+      const results = GAME_LIBRARY.filter((g) =>
+        g.game.toLowerCase().includes(q.toLowerCase()),
+      ).slice(0, 10);
+      return new Response(
+        JSON.stringify(
+          results.map((g) => ({ id: g.id, name: g.game, cover_url: g.coverUrl ?? null, genres: g.genres })),
+        ),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
+    }
 
     // GET /api/me
     if (url.includes("/api/me") && method === "GET") {
@@ -84,6 +103,53 @@ function makeDefaultFetch() {
       );
     }
 
+    // POST /api/players/me/journeys/pending/:id/(discard|confirm|exclude)
+    // Must be before the general journeys routes.
+    const pendingActionMatch = url.match(
+      /\/api\/players\/me\/journeys\/pending\/([^/]+)\/(discard|confirm|exclude)$/,
+    );
+    if (pendingActionMatch && method === "POST") {
+      const [, id, action] = pendingActionMatch;
+      const idx = pendingJourneys.findIndex((p) => p.id === id);
+      if (idx >= 0) pendingJourneys.splice(idx, 1);
+      if (action === "confirm") {
+        return new Response(
+          JSON.stringify({ id: `j-${id}` }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }
+      return new Response(null, { status: 204 });
+    }
+
+    // GET /api/players/me/journeys/pending
+    if (url.match(/\/api\/players\/me\/journeys\/pending$/) && method === "GET") {
+      return new Response(
+        JSON.stringify({
+          journeys: pendingJourneys.map((p) => ({
+            id: p.id,
+            status: "active",
+            igdb_id: p.igdbId ?? null,
+            game: p.game || null,
+            cover_url: p.coverUrl ?? null,
+            genres: p.genres,
+            exe_name: p.exeName ?? null,
+            window_title: p.windowTitle ?? null,
+            started_at: new Date(p.endedAt.getTime() - 3600000).toISOString(),
+            ended_at: p.endedAt.toISOString(),
+          })),
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
+    }
+
+    // POST /api/players/me/journeys (add journey) — before the GET handler below
+    if (url.match(/\/api\/players\/me\/journeys$/) && method === "POST") {
+      return new Response(
+        JSON.stringify({ id: "new-journey" }),
+        { status: 201, headers: { "Content-Type": "application/json" } },
+      );
+    }
+
     // /api/players/:id/follow (POST or DELETE) — must match before /:id
     const followMatch = url.match(/\/api\/players\/([^/]+)\/follow$/);
     if (followMatch) {
@@ -115,10 +181,10 @@ function makeDefaultFetch() {
       );
     }
 
-    // GET /api/players/:id/journeys
+    // GET /api/players/:id/journeys — "me" resolves to MY_PLAYER.id
     const journeysMatch = url.match(/\/api\/players\/([^/]+)\/journeys$/);
     if (journeysMatch && method === "GET") {
-      const pid = journeysMatch[1];
+      const pid = journeysMatch[1] === "me" ? MY_PLAYER.id : journeysMatch[1];
       const journeys = JOURNEYS.filter((j) => j.player.id === pid);
       return new Response(
         JSON.stringify({

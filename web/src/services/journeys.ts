@@ -4,16 +4,9 @@
 import type { Journey, PendingJourney, NewJourney } from "@/models/journey";
 import type { Comment, JourneyPlayer } from "@/models/game";
 import type { Player } from "@/models/player";
-import {
-  MOCK_PENDING_JOURNEYS,
-} from "@/lib/mock";
 import { API_BASE } from "@/lib/api";
 import { formatDuration } from "@/lib/time";
 import { getCurrentPlayer } from "./auth";
-
-let _discardedIds = new Set<string>();
-let _confirmedJourneyIds = new Set<string>();
-let _pendingJourneys: PendingJourney[] = [...MOCK_PENDING_JOURNEYS];
 
 type RawJourneyDetail = {
   id: string;
@@ -87,9 +80,7 @@ export async function getPendingJourneys(): Promise<PendingJourney[]> {
   const resp = await fetch(`${API_BASE}/api/players/me/journeys/pending`, {
     credentials: "include",
   });
-  if (!resp.ok) {
-    return _pendingJourneys.filter((p) => !_discardedIds.has(p.id));
-  }
+  if (!resp.ok) throw new Error(`get pending journeys: ${resp.status}`);
   const data: { journeys: RawPendingJourney[] } = await resp.json();
 
   return (data.journeys ?? []).map((p): PendingJourney => {
@@ -157,11 +148,7 @@ export async function confirmPendingJourney(
       log: input.log ?? null,
     }),
   });
-  if (!resp.ok) {
-    _discardedIds.add(pendingId);
-    _confirmedJourneyIds.add(pendingId);
-    return;
-  }
+  if (!resp.ok) throw new Error(`confirm pending journey: ${resp.status}`);
 }
 
 export async function dismissPendingJourney(pendingId: string): Promise<void> {
@@ -169,10 +156,7 @@ export async function dismissPendingJourney(pendingId: string): Promise<void> {
     method: "POST",
     credentials: "include",
   });
-  if (!resp.ok) {
-    _discardedIds.add(pendingId);
-    return;
-  }
+  if (!resp.ok) throw new Error(`dismiss pending journey: ${resp.status}`);
 }
 
 export async function excludePendingJourney(pendingId: string): Promise<void> {
@@ -180,10 +164,7 @@ export async function excludePendingJourney(pendingId: string): Promise<void> {
     method: "POST",
     credentials: "include",
   });
-  if (!resp.ok) {
-    _discardedIds.add(pendingId);
-    return;
-  }
+  if (!resp.ok) throw new Error(`exclude pending journey: ${resp.status}`);
 }
 
 type RawLiker = {
@@ -316,8 +297,3 @@ export async function deleteComment(journeyId: string, commentId: string): Promi
   if (!resp.ok) throw new Error(`delete comment: ${resp.status}`);
 }
 
-export function _reset(): void {
-  _discardedIds.clear();
-  _confirmedJourneyIds.clear();
-  _pendingJourneys = [...MOCK_PENDING_JOURNEYS];
-}

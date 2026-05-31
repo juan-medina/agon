@@ -374,4 +374,3 @@ export const MOCK_GAME_ACTIVITY: GameActivity[] = [
     ],
   },
 ];
-
