@@ -385,13 +385,13 @@ export default function JourneyDetail() {
           <h2 className="text-sm font-semibold">On this journey</h2>
         </div>
 
-        {(journeyPlayers?.friends ?? []).length > 0 && (
+        {(journeyPlayers?.following ?? []).length > 0 && (
           <div className="px-4">
             <p className="pt-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Friends
+              Following
             </p>
             <div className="divide-y divide-border">
-              {(journeyPlayers?.friends ?? []).map((entry) => (
+              {(journeyPlayers?.following ?? []).map((entry) => (
                 <JourneyPlayerRow key={entry.player.id} entry={entry} currentPlayerId={currentPlayer?.id} />
               ))}
             </div>
@@ -409,6 +409,12 @@ export default function JourneyDetail() {
               ))}
             </div>
           </div>
+        )}
+
+        {journeyPlayers && (journeyPlayers.following.length + journeyPlayers.others.length === 0) && (
+          <p className="px-4 py-4 text-sm text-muted-foreground">
+            No one else on this journey yet.
+          </p>
         )}
       </div>
 

@@ -2,7 +2,7 @@
 
 > *ἀγών — a gathering, a contest, a session of play*
 
-Agōn is an open social network for gaming journeys. Log what you play, see what friends are playing, discover games through the people you trust.
+Agōn is an open social network for gaming journeys. Log what you play, see what people you follow are playing, discover games through the people you trust.
 
 ## What it is
 

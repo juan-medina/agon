@@ -224,7 +224,7 @@ export async function getLikers(_journeyId: string): Promise<Player[]> {
 }
 
 export async function getJourneyPlayers(journeyId: string): Promise<{
-  friends: JourneyPlayer[];
+  following: JourneyPlayer[];
   others: JourneyPlayer[];
 }> {
   const resp = await fetch(`${API_BASE}/api/journeys/${journeyId}/players`, { credentials: "include" });
@@ -238,7 +238,7 @@ export async function getJourneyPlayers(journeyId: string): Promise<{
     }[];
   } = await resp.json();
 
-  const others: JourneyPlayer[] = (data.players ?? []).map((p) => ({
+  const all: JourneyPlayer[] = (data.players ?? []).map((p) => ({
     player: {
       id: p.player.id,
       handle: p.player.handle,
@@ -251,7 +251,9 @@ export async function getJourneyPlayers(journeyId: string): Promise<{
     isFollowing: p.player.is_following,
   }));
 
-  return { friends: [], others };
+  const following = all.filter((p) => p.isFollowing);
+  const others = all.filter((p) => !p.isFollowing);
+  return { following, others };
 }
 
 export async function postComment(journeyId: string, text: string): Promise<void> {

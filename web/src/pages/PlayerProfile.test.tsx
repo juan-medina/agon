@@ -13,6 +13,7 @@ function renderProfile(id: string) {
     <MemoryRouter initialEntries={[`/player/${id}`]}>
       <Routes>
         <Route path="/player/:id" element={<PlayerProfile />} />
+        <Route path="/hero" element={<div>Hero</div>} />
       </Routes>
     </MemoryRouter>,
   );
@@ -69,9 +70,9 @@ describe("PlayerProfile", () => {
   });
 
   it("does not show a follow button on your own profile", async () => {
-    const me = PLAYERS.find((p) => p.id === "p1")!;
-    renderProfile(me.id);
-    await screen.findByText(me.name);
+    renderProfile("p1");
+    // Own profile redirects to /hero — no follow button is ever rendered
+    expect(await screen.findByText("Hero")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Follow" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Unfollow" })).not.toBeInTheDocument();
   });

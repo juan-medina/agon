@@ -166,7 +166,7 @@ Tapping a journey card opens the journey detail at `/journey/:id`. It shows:
 - Like button — the only place the like action is exposed
 - Liked-by avatars — a subset shown inline, expandable to the full list
 - Comments — flat, chronological, posted by any player including the owner; not likeable
-- **Friends on this journey** — people you follow who have also played this game, ordered by most recent journey, up to 20
+- **Following on this journey** — people you follow who have also played this game, ordered by most recent journey, up to 20
 - **Others on this journey** — players outside your follow graph who have played this game, ordered by most recent journey, up to 20
 
 ## IGDB
