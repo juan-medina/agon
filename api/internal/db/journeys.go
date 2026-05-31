@@ -350,6 +350,85 @@ func GetFollowingFeed(ctx context.Context, pool *pgxpool.Pool, userID string, li
 	return journeys, rows.Err()
 }
 
+// JourneyComment is a comment row joined with the commenter's user info.
+type JourneyComment struct {
+	ID              string
+	JourneyID       string
+	UserID          string
+	Body            string
+	CreatedAt       time.Time
+	PlayerHandle    string
+	PlayerName      string
+	PlayerAvatarURL *string
+	PlayerColor     string
+}
+
+// ListComments returns all comments for the given journey ordered by created_at ascending.
+func ListComments(ctx context.Context, pool *pgxpool.Pool, journeyID string) ([]JourneyComment, error) {
+	rows, err := pool.Query(ctx, `
+		SELECT c.id, c.journey_id, c.user_id, c.body, c.created_at,
+		       u.handle, u.name, u.avatar_url, u.color
+		FROM comments c
+		JOIN users u ON u.id = c.user_id
+		WHERE c.journey_id = $1
+		ORDER BY c.created_at ASC
+	`, journeyID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var comments []JourneyComment
+	for rows.Next() {
+		var c JourneyComment
+		if err := rows.Scan(
+			&c.ID, &c.JourneyID, &c.UserID, &c.Body, &c.CreatedAt,
+			&c.PlayerHandle, &c.PlayerName, &c.PlayerAvatarURL, &c.PlayerColor,
+		); err != nil {
+			return nil, err
+		}
+		comments = append(comments, c)
+	}
+	return comments, rows.Err()
+}
+
+// InsertComment writes a new comment and returns it with the commenter's player info.
+func InsertComment(ctx context.Context, pool *pgxpool.Pool, journeyID, userID, body string) (JourneyComment, error) {
+	var c JourneyComment
+	err := pool.QueryRow(ctx, `
+		WITH ins AS (
+			INSERT INTO comments (journey_id, user_id, body)
+			VALUES ($1, $2, $3)
+			RETURNING id, journey_id, user_id, body, created_at
+		)
+		SELECT ins.id, ins.journey_id, ins.user_id, ins.body, ins.created_at,
+		       u.handle, u.name, u.avatar_url, u.color
+		FROM ins
+		JOIN users u ON u.id = ins.user_id
+	`, journeyID, userID, body).Scan(
+		&c.ID, &c.JourneyID, &c.UserID, &c.Body, &c.CreatedAt,
+		&c.PlayerHandle, &c.PlayerName, &c.PlayerAvatarURL, &c.PlayerColor,
+	)
+	if err != nil {
+		return JourneyComment{}, fmt.Errorf("insert comment: %w", err)
+	}
+	return c, nil
+}
+
+// DeleteComment removes a comment by ID, only if it belongs to the given user.
+func DeleteComment(ctx context.Context, pool *pgxpool.Pool, commentID, userID string) error {
+	tag, err := pool.Exec(ctx, `
+		DELETE FROM comments WHERE id = $1 AND user_id = $2
+	`, commentID, userID)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return fmt.Errorf("comment not found: %s", commentID)
+	}
+	return nil
+}
+
 // ListJourneysByUser returns confirmed journeys for the given user ID joined
 // with igdb_games, ordered by played_at descending, with optional cursor-based pagination.
 func ListJourneysByUser(ctx context.Context, pool *pgxpool.Pool, userID string, limit int, cursor string) ([]Journey, error) {

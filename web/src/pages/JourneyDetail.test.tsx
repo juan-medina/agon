@@ -15,6 +15,7 @@ const s2 = JOURNEYS.find((j) => j.id === "s2")!;
 // Players initially followed: MY_FOLLOWING = PLAYERS[1..3] = p2, p3, p4
 const initiallyFollowed = new Set(["p2", "p3", "p4"]);
 let followedIds: Set<string>;
+let mockComments: typeof MOCK_COMMENTS;
 
 function journeyResponse(j: typeof s1, igdbId: number, durationSeconds: number) {
   return JSON.stringify({
@@ -57,6 +58,33 @@ function makeFetch() {
       return json(JSON.stringify({ id: player.id, handle: player.handle, name: player.name, avatar_url: null, color: player.color, followers: 0, following: 0, is_following: followedIds.has(pid) }));
     }
 
+    // Comments
+    const deleteCommentMatch = url.match(/\/api\/journeys\/(\w+)\/comments\/(\S+)$/);
+    if (deleteCommentMatch && method === "DELETE") {
+      const commentId = deleteCommentMatch[2];
+      mockComments = mockComments.filter((c) => c.id !== commentId);
+      return new Response(null, { status: 204 });
+    }
+    if (/\/api\/journeys\/\w+\/comments$/.test(url) && method === "POST") {
+      const body = JSON.parse((init?.body as string) ?? "{}");
+      const newComment = {
+        id: `new-${Date.now()}`,
+        player: { id: MY_PLAYER.id, handle: MY_PLAYER.handle, name: MY_PLAYER.name, avatar_url: null, color: MY_PLAYER.color },
+        text: body.text as string,
+        commented_at: new Date().toISOString(),
+      };
+      return new Response(JSON.stringify(newComment), { status: 201, headers: { "Content-Type": "application/json" } });
+    }
+    if (/\/api\/journeys\/\w+\/comments$/.test(url) && method === "GET") {
+      const comments = mockComments.map((c) => ({
+        id: c.id,
+        player: { id: c.player.id, handle: c.player.handle, name: c.player.name, avatar_url: c.player.avatarUrl ?? null, color: c.player.color },
+        text: c.text,
+        commented_at: c.commentedAt.toISOString(),
+      }));
+      return json(JSON.stringify({ comments }));
+    }
+
     if (/\/api\/journeys\/s1\/players/.test(url)) {
       return json(JSON.stringify({
         players: MOCK_OTHERS_ON_JOURNEY.map((p) => ({
@@ -95,6 +123,7 @@ function renderJourney(id: string) {
 
 beforeEach(() => {
   followedIds = new Set(initiallyFollowed);
+  mockComments = [...MOCK_COMMENTS];
   resetJourneys();
   resetPlayers();
   vi.stubGlobal("fetch", makeFetch());

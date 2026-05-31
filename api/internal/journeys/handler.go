@@ -28,10 +28,40 @@ func NewHandler(pool *pgxpool.Pool, jwtPriv ed25519.PrivateKey) *Handler {
 	return &Handler{pool: pool, jwtPriv: jwtPriv}
 }
 
+// commentResp is the JSON shape for a single comment.
+type commentResp struct {
+	ID     string `json:"id"`
+	Player struct {
+		ID        string  `json:"id"`
+		Handle    string  `json:"handle"`
+		Name      string  `json:"name"`
+		AvatarURL *string `json:"avatar_url,omitempty"`
+		Color     string  `json:"color"`
+	} `json:"player"`
+	Text        string `json:"text"`
+	CommentedAt string `json:"commented_at"`
+}
+
+func toCommentResp(c db.JourneyComment) commentResp {
+	var r commentResp
+	r.ID = c.ID
+	r.Player.ID = c.UserID
+	r.Player.Handle = c.PlayerHandle
+	r.Player.Name = c.PlayerName
+	r.Player.AvatarURL = c.PlayerAvatarURL
+	r.Player.Color = c.PlayerColor
+	r.Text = c.Body
+	r.CommentedAt = c.CreatedAt.UTC().Format(time.RFC3339)
+	return r
+}
+
 // Register mounts journey routes on mux.
 func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/journeys/{id}", h.get)
 	mux.HandleFunc("GET /api/journeys/{id}/players", h.players)
+	mux.HandleFunc("GET /api/journeys/{id}/comments", h.listComments)
+	mux.HandleFunc("POST /api/journeys/{id}/comments", h.postComment)
+	mux.HandleFunc("DELETE /api/journeys/{id}/comments/{commentId}", h.deleteComment)
 	mux.HandleFunc("POST /api/players/me/journeys", h.add)
 	mux.HandleFunc("DELETE /api/players/me/journeys/{id}", h.delete)
 	mux.HandleFunc("GET /api/players/me/journeys", h.listMine)
@@ -137,6 +167,66 @@ func (h *Handler) players(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]any{"players": resp})
+}
+
+func (h *Handler) listComments(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	comments, err := db.ListComments(r.Context(), h.pool, id)
+	if err != nil {
+		log.Printf("journeys/listComments: %v", err)
+		http.Error(w, `{"error":"internal_error"}`, http.StatusInternalServerError)
+		return
+	}
+
+	resp := make([]commentResp, 0, len(comments))
+	for _, c := range comments {
+		resp = append(resp, toCommentResp(c))
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{"comments": resp})
+}
+
+func (h *Handler) postComment(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.authenticate(w, r)
+	if !ok {
+		return
+	}
+
+	id := r.PathValue("id")
+
+	var body struct {
+		Text string `json:"text"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Text == "" {
+		http.Error(w, `{"error":"invalid_request"}`, http.StatusBadRequest)
+		return
+	}
+
+	comment, err := db.InsertComment(r.Context(), h.pool, id, userID, body.Text)
+	if err != nil {
+		log.Printf("journeys/postComment: %v", err)
+		http.Error(w, `{"error":"internal_error"}`, http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	_ = json.NewEncoder(w).Encode(toCommentResp(comment))
+}
+
+func (h *Handler) deleteComment(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.authenticate(w, r)
+	if !ok {
+		return
+	}
+
+	commentId := r.PathValue("commentId")
+	if err := db.DeleteComment(r.Context(), h.pool, commentId, userID); err != nil {
+		http.Error(w, `{"error":"not_found"}`, http.StatusNotFound)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h *Handler) authenticate(w http.ResponseWriter, r *http.Request) (string, bool) {

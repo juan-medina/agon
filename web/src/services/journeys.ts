@@ -5,7 +5,6 @@ import type { Journey, PendingJourney, NewJourney } from "@/models/journey";
 import type { Comment, JourneyPlayer } from "@/models/game";
 import type { Player } from "@/models/player";
 import {
-  MOCK_COMMENTS,
   MOCK_LIKERS,
   MOCK_PENDING_JOURNEYS,
 } from "@/lib/mock";
@@ -185,9 +184,14 @@ export async function excludePendingJourney(pendingId: string): Promise<void> {
   }
 }
 
-let _comments: Comment[] = [...MOCK_COMMENTS];
 const _likers: Player[] = [...MOCK_LIKERS];
-const extraComments = new Map<string, Comment[]>();
+
+type RawComment = {
+  id: string;
+  player: { id: string; handle: string; name: string; avatar_url?: string; color: string };
+  text: string;
+  commented_at: string;
+};
 
 export async function getJourney(id: string): Promise<Journey | undefined> {
   const resp = await fetch(`${API_BASE}/api/journeys/${id}`, { credentials: "include" });
@@ -215,8 +219,21 @@ export async function getJourney(id: string): Promise<Journey | undefined> {
 }
 
 export async function getComments(journeyId: string): Promise<Comment[]> {
-  const base = journeyId === "s1" ? _comments : [];
-  return [...base, ...(extraComments.get(journeyId) ?? [])];
+  const resp = await fetch(`${API_BASE}/api/journeys/${journeyId}/comments`, { credentials: "include" });
+  if (!resp.ok) throw new Error(`get comments: ${resp.status}`);
+  const data: { comments: RawComment[] } = await resp.json();
+  return (data.comments ?? []).map((c): Comment => ({
+    id: c.id,
+    player: {
+      id: c.player.id,
+      handle: c.player.handle,
+      name: c.player.name,
+      avatarUrl: c.player.avatar_url,
+      color: c.player.color,
+    },
+    text: c.text,
+    commentedAt: new Date(c.commented_at),
+  }));
 }
 
 export async function getLikers(_journeyId: string): Promise<Player[]> {
@@ -257,14 +274,13 @@ export async function getJourneyPlayers(journeyId: string): Promise<{
 }
 
 export async function postComment(journeyId: string, text: string): Promise<void> {
-  const player = await getCurrentPlayer();
-  const comment: Comment = {
-    id: `new-${Date.now()}`,
-    player,
-    text,
-    commentedAt: new Date(),
-  };
-  extraComments.set(journeyId, [...(extraComments.get(journeyId) ?? []), comment]);
+  const resp = await fetch(`${API_BASE}/api/journeys/${journeyId}/comments`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text }),
+  });
+  if (!resp.ok) throw new Error(`post comment: ${resp.status}`);
 }
 
 export async function deleteJourney(journeyId: string): Promise<void> {
@@ -276,18 +292,15 @@ export async function deleteJourney(journeyId: string): Promise<void> {
 }
 
 export async function deleteComment(journeyId: string, commentId: string): Promise<void> {
-  const extra = extraComments.get(journeyId);
-  if (extra?.some((c) => c.id === commentId)) {
-    extraComments.set(journeyId, extra.filter((c) => c.id !== commentId));
-    return;
-  }
-  _comments = _comments.filter((c) => c.id !== commentId);
+  const resp = await fetch(`${API_BASE}/api/journeys/${journeyId}/comments/${commentId}`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+  if (!resp.ok) throw new Error(`delete comment: ${resp.status}`);
 }
 
 export function _reset(): void {
   likedIds.clear();
-  extraComments.clear();
-  _comments = [...MOCK_COMMENTS];
   _discardedIds.clear();
   _confirmedJourneyIds.clear();
   _pendingJourneys = [...MOCK_PENDING_JOURNEYS];
