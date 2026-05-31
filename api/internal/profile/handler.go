@@ -144,6 +144,12 @@ func (h *Handler) followPlayer(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "follow failed", http.StatusInternalServerError)
 		return
 	}
+
+	// Best-effort echo — never block the response on notification failure.
+	if err := db.UpsertFollowerEcho(r.Context(), h.pool, targetID, callerID); err != nil {
+		log.Printf("profile/follow: upsert echo: %v", err)
+	}
+
 	w.WriteHeader(http.StatusNoContent)
 }
 

@@ -559,13 +559,15 @@ Only the comment author can delete their own comments.
 
 ## Echoes
 
+Echoes are batched — one echo per `(type, subject)` accumulates actors over time rather than producing one notification per actor.
+
 ### List echoes
 
 ```
 GET /echoes
 ```
 
-In-app notifications for the authenticated user. New comment on your journey, or a new follower. Reverse chronological.
+In-app notifications for the authenticated user, reverse chronological by `updated_at`.
 
 **Response**
 
@@ -573,27 +575,41 @@ In-app notifications for the authenticated user. New comment on your journey, or
 {
   "echoes": [
     {
-      "id": "1",
-      "kind": "comment",
-      "actor": { Player },
-      "journey_id": "01920f3a-...",
+      "id": "01920f3a-...",
+      "type": "new_comment",
+      "actors": [ Player, Player ],
+      "actor_count": 5,
+      "subject_id": "01920f3b-...",
+      "subject_title": "Elden Ring",
       "read": false,
-      "created_at": "2026-05-23T17:00:00Z"
+      "created_at": "2026-05-23T17:00:00Z",
+      "updated_at": "2026-05-24T09:00:00Z"
+    },
+    {
+      "id": "01920f3c-...",
+      "type": "new_follower",
+      "actors": [ Player ],
+      "actor_count": 1,
+      "subject_id": null,
+      "subject_title": null,
+      "read": true,
+      "created_at": "2026-05-22T10:00:00Z",
+      "updated_at": "2026-05-22T10:00:00Z"
     }
   ],
-  "unread_count": 3
+  "unread_count": 1
 }
 ```
 
-`kind` is `comment` or `follower`. `journey_id` is present only for `comment` echoes.
+`type` is `new_comment`, `new_follower`, or `new_like`. `subject_id` and `subject_title` are null for `new_follower` echoes. `actors` contains at most 3 players — `actor_count` gives the full total. `subject_title` is snapshotted at creation and remains even if the journey is later deleted. `read` is `false` while `seen_at` is null in the database.
 
-### Mark echoes as read
+### Mark all echoes as read
 
 ```
 POST /echoes/read
 ```
 
-Marks all unread echoes as read.
+Called by the frontend when the notification panel opens. Marks all unread echoes for the authenticated user as read in one operation.
 
 **Response** — `204 No Content`
 

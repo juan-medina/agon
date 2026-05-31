@@ -43,6 +43,7 @@ ALTER DEFAULT PRIVILEGES FOR ROLE agon_admin IN SCHEMA public
 -- Tables
 -- Drop in reverse FK order so the script is re-runnable after schema changes.
 
+DROP TABLE IF EXISTS echo_actors;
 DROP TABLE IF EXISTS echoes;
 DROP TABLE IF EXISTS comments;
 DROP TABLE IF EXISTS likes;
@@ -173,20 +174,33 @@ CREATE TABLE comments (
 
 CREATE INDEX comments_journey_id_idx ON comments(journey_id, created_at ASC);
 
--- In-app notifications, per user. Written when another player comments on your
--- journey, or when someone follows you. Marked read when the user visits /echoes.
--- kind: 'comment' | 'follower'
+-- Batched in-app notifications. One row per (recipient, type, subject).
+-- New activity on an existing echo resets seen_at to NULL (unread) and bumps updated_at.
+-- type: 'new_comment' | 'new_follower'
 CREATE TABLE echoes (
-    id          bigint      PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
-    user_id     uuid        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    kind        text        NOT NULL CHECK (kind IN ('comment', 'follower')),
-    actor_id    uuid        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    journey_id  uuid        REFERENCES journeys(id) ON DELETE CASCADE,
-    comment_id  uuid        REFERENCES comments(id) ON DELETE CASCADE,
-    read        boolean     NOT NULL DEFAULT false,
-    created_at  timestamptz NOT NULL DEFAULT now()
+    id            bigint      PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+    recipient_id  uuid        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    type          text        NOT NULL CHECK (type IN ('new_comment', 'new_follower', 'new_like')),
+    subject_id    uuid        REFERENCES journeys(id) ON DELETE SET NULL,
+    subject_title text,
+    seen_at       timestamptz,
+    created_at    timestamptz NOT NULL DEFAULT now(),
+    updated_at    timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE INDEX echoes_user_id_read_idx ON echoes(user_id, read, created_at DESC);
+-- One echo per (recipient, journey) for comments; one per recipient for followers.
+CREATE UNIQUE INDEX echoes_comment_unique_idx  ON echoes(recipient_id, subject_id) WHERE type = 'new_comment';
+CREATE UNIQUE INDEX echoes_follower_unique_idx ON echoes(recipient_id)             WHERE type = 'new_follower';
+CREATE UNIQUE INDEX echoes_like_unique_idx     ON echoes(recipient_id, subject_id) WHERE type = 'new_like';
+CREATE INDEX echoes_recipient_updated_idx      ON echoes(recipient_id, updated_at DESC);
+
+-- Actors who contributed to an echo (commenters, followers).
+-- PK prevents the same actor from appearing twice in one echo.
+CREATE TABLE echo_actors (
+    echo_id    bigint      NOT NULL REFERENCES echoes(id) ON DELETE CASCADE,
+    actor_id   uuid        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (echo_id, actor_id)
+);
 
 RESET ROLE;

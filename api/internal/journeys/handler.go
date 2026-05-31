@@ -168,6 +168,14 @@ func (h *Handler) likeJourney(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"internal_error"}`, http.StatusInternalServerError)
 		return
 	}
+
+	// Best-effort echo — never block the response on notification failure.
+	if meta, err := db.GetJourneyMeta(r.Context(), h.pool, id); err == nil {
+		if err := db.UpsertLikeEcho(r.Context(), h.pool, meta.OwnerID, userID, id, meta.GameName); err != nil {
+			log.Printf("journeys/like: upsert echo: %v", err)
+		}
+	}
+
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -273,6 +281,13 @@ func (h *Handler) postComment(w http.ResponseWriter, r *http.Request) {
 		log.Printf("journeys/postComment: %v", err)
 		http.Error(w, `{"error":"internal_error"}`, http.StatusInternalServerError)
 		return
+	}
+
+	// Best-effort echo — never block the response on notification failure.
+	if meta, err := db.GetJourneyMeta(r.Context(), h.pool, id); err == nil {
+		if err := db.UpsertCommentEcho(r.Context(), h.pool, meta.OwnerID, userID, id, meta.GameName); err != nil {
+			log.Printf("journeys/postComment: upsert echo: %v", err)
+		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")

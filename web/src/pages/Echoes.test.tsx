@@ -1,12 +1,15 @@
 // SPDX-FileCopyrightText: 2026 Juan Medina
 // SPDX-License-Identifier: MIT
-import { screen, waitFor } from "@testing-library/react";
+import { vi } from "vitest";
+import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { MOCK_ECHOES } from "@/lib/mock";
-import { _reset as resetEchoes } from "@/services/echoes";
+import * as echoesService from "@/services/echoes";
 import { renderWithProviders } from "@/test/utils";
 import Echoes from "./Echoes";
+
+vi.mock("@/services/echoes");
 
 function renderEchoes() {
   return renderWithProviders(
@@ -17,10 +20,17 @@ function renderEchoes() {
 }
 
 beforeEach(() => {
-  resetEchoes();
+  vi.mocked(echoesService.getEchoes).mockResolvedValue([...MOCK_ECHOES]);
+  vi.mocked(echoesService.markAllRead).mockResolvedValue(undefined);
 });
 
 describe("Echoes", () => {
+  it("marks all echoes as read when the page opens", async () => {
+    renderEchoes();
+    await screen.findAllByText(/commented on your/);
+    expect(echoesService.markAllRead).toHaveBeenCalledOnce();
+  });
+
   it("Comments filter hides follower echoes", async () => {
     const user = userEvent.setup();
     renderEchoes();
@@ -37,27 +47,17 @@ describe("Echoes", () => {
     expect(screen.queryByText(/commented on your/)).not.toBeInTheDocument();
   });
 
-  it("clicking Mark all read disables the button", async () => {
-    const user = userEvent.setup();
-    renderEchoes();
-    await screen.findAllByText(/commented on your/);
-    await user.click(screen.getByRole("button", { name: "Mark all read" }));
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Mark all read" })).toBeDisabled(),
-    );
-  });
-
   it("comment echo links to its journey", async () => {
     renderEchoes();
-    const firstComment = MOCK_ECHOES.find((e) => e.kind === "comment")!;
+    const firstComment = MOCK_ECHOES.find((e) => e.type === "new_comment")!;
     const links = await screen.findAllByRole("link", { name: /commented on your/ });
-    expect(links[0]).toHaveAttribute("href", `/journey/${firstComment.sessionId}`);
+    expect(links[0]).toHaveAttribute("href", `/journey/${firstComment.subjectId}`);
   });
 
-  it("follower echo links to the follower's player profile", async () => {
+  it("follower echo links to the first actor's profile", async () => {
     renderEchoes();
-    const firstFollower = MOCK_ECHOES.find((e) => e.kind === "follower")!;
+    const firstFollower = MOCK_ECHOES.find((e) => e.type === "new_follower")!;
     const links = await screen.findAllByRole("link", { name: /started following you/ });
-    expect(links[0]).toHaveAttribute("href", `/player/${firstFollower.player.handle}`);
+    expect(links[0]).toHaveAttribute("href", `/player/${firstFollower.actors[0].id}`);
   });
 });

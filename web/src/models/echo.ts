@@ -3,15 +3,16 @@
 
 import type { Player } from "./player";
 
-export type EchoKind = "comment" | "follower";
+export type EchoType = "new_comment" | "new_follower" | "new_like";
 
 export type Echo = {
   id: string;
-  kind: EchoKind;
-  player: Player;
-  occurredAt: Date;
+  type: EchoType;
+  actors: Player[];
+  actorCount: number;
+  subjectId: string | null;
+  subjectTitle: string | null;
   read: boolean;
-  sessionId?: string;
-  game?: string;
-  commentPreview?: string;
+  createdAt: Date;
+  updatedAt: Date;
 };

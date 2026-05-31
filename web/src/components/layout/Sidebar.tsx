@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Juan Medina
 // SPDX-License-Identifier: MIT
 import { NavLink } from "react-router";
-import { Globe2, ScrollText, Settings, Shield, Users } from "lucide-react";
+import { Bell, Globe2, ScrollText, Settings, Shield, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -16,6 +16,7 @@ export const navItems: NavItem[] = [
   { to: "/", label: "Realm", icon: Globe2, end: true },
   { to: "/journeys", label: "Journeys", icon: ScrollText },
   { to: "/players", label: "Players", icon: Users },
+  { to: "/echoes", label: "Echoes", icon: Bell },
   { to: "/hero", label: "Hero", icon: Shield },
   { to: "/settings", label: "Settings", icon: Settings },
 ];

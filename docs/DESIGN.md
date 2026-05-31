@@ -16,7 +16,7 @@ Consistent terms used throughout this document, the codebase, and the UI. When i
 | **Journeys** | The page showing your own journeys — confirmed history and pending confirmation inbox. |
 | **Players** | The game-centric discovery page — browse who is playing what. Not a social graph view. |
 | **Hero** | Your own profile page — confirmed journey history and stats. |
-| **Echo** | An in-app notification. Triggered by a new comment on your journey or a new follower. |
+| **Echo** | An in-app notification. Triggered by a new comment on your journey or a new follower. Batched per subject — one echo per (recipient, type, subject) accumulates actors rather than creating one row per actor. |
 | **Exclusion** | An executable the agent will never create a pending journey for. |
 
 ## What we are building
@@ -96,7 +96,8 @@ comments           — flat, chronological, attached to a journey
 exe_exclusions     — per user, executables to never detect
 exe_game_hints     — per user, exe_name → igdb_id, built from confirmed corrections
 igdb_cache         — server-side IGDB responses with TTL
-echoes             — per user, new comment / new follower events
+echoes             — per user, batched notifications; one row per (recipient, type, subject)
+echo_actors        — actors who contributed to an echo (commenters, followers, likers)
 ```
 
 ```
@@ -131,7 +132,9 @@ likes(journey_id, user_id, created_at)
 
 One row per (journey, user) pair. Written on like, deleted on unlike. Powers like counts and the liked-by list on journey detail.
 
-Likes are **not surfaced as feed items** in the Realm and do **not** trigger an Echo — they are too frequent and low-signal. The like button appears inline on each Realm feed card and in the journey detail.
+Likes are **not surfaced as feed items** in the Realm. The like button appears inline on each Realm feed card and in the journey detail.
+
+Likes **do** trigger an Echo — batched, so "Juan and 2 others liked your journey" is one notification, not three. Liking your own journey does not trigger an echo.
 
 ## Log and comments
 
@@ -140,6 +143,27 @@ Two distinct concepts for text attached to a journey:
 **Log** — the journey owner's narrative, written once at confirmation time. A field on the `journeys` row. Shown in the Realm feed card and in the journey detail. Only the owner has a log; it cannot be edited after confirm.
 
 **Comments** — text written by any player (including the journey owner) after the journey is confirmed. Separate rows in the `comments` table referencing the journey by ID. Shown in the journey detail only — never in the Realm feed. Flat and chronological — no threading, no hierarchy, no reply-to chains. Comments cannot be liked. A new comment on your journey by another player triggers an Echo; your own comments on your own journey do not.
+
+## Echoes
+
+Echoes are in-app notifications. They use a batched model: one `echoes` row per `(recipient_id, type, subject_id)` that accumulates actors over time, rather than one row per actor. This keeps "Juan and 2 others commented on your journey" as a single notification rather than three.
+
+```
+echoes(id, recipient_id, type, subject_id, subject_title, seen_at, created_at, updated_at)
+echo_actors(echo_id, actor_id, created_at)
+```
+
+`type` is one of `new_comment`, `new_follower`, `new_like`.
+
+`subject_id` is the journey ID for `new_comment` echoes; null for `new_follower` echoes.
+
+`subject_title` is snapshotted from the journey's game name at creation time. If the journey is later deleted, the echo still renders — the link is simply omitted. This mirrors the AT-Proto-era denormalisation rationale: data you reference can disappear.
+
+`seen_at` is null until the user opens the notification panel, at which point `POST /echoes/seen` stamps `seen_at = now()` on all unseen echoes for that user in one query. There is no per-echo read action — opening the panel clears the badge. This matches the Discord interaction model, which is familiar to the target audience.
+
+`updated_at` is bumped each time a new actor is added to an existing echo, so the panel can show the time of most recent activity.
+
+New follower echoes are written in the same transaction as the `follows` row. New comment echoes are written in the same transaction as the `comments` row, unless the commenter is the journey owner. New like echoes are written on like, unless the liker is the journey owner. Unlike does not remove the echo.
 
 ## Realm feed
 
