@@ -7,23 +7,7 @@ import { getCurrentPlayer, updateProfile } from "@/services/auth";
 import { getUserJourneys } from "@/services/journeys";
 import { getFollowers, getFollowing } from "@/services/players";
 import { MY_PLAYER_ID } from "@/services/auth";
-import { avatarSrc, initials } from "@/lib/display";
-import FollowListModal from "@/components/FollowListModal";
-import JourneyCard from "@/components/JourneyCard";
-import type { Journey, Player } from "@/models";
-
-function totalHours(journeys: Journey[]): string {
-  const mins = journeys.reduce((acc, j) => {
-    const h = parseInt(j.duration.match(/(\d+)h/)?.[1] ?? "0");
-    const m = parseInt(j.duration.match(/(\d+)m/)?.[1] ?? "0");
-    return acc + h * 60 + m;
-  }, 0);
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
-  if (h > 0 && m > 0) return `${h}h ${m}m`;
-  if (h > 0) return `${h}h`;
-  return `${m}m`;
-}
+import ProfileView from "@/components/ProfileView";
 
 export default function Hero() {
   const queryClient = useQueryClient();
@@ -41,7 +25,6 @@ export default function Hero() {
 
   const [editingBio, setEditingBio] = useState(false);
   const [draftBio, setDraftBio] = useState("");
-  const [followList, setFollowList] = useState<{ title: string; players: Player[] } | null>(null);
 
   const updateProfileMutation = useMutation({
     mutationFn: updateProfile,
@@ -50,7 +33,6 @@ export default function Hero() {
 
   if (!player) return null;
 
-  const displayName = player.name;
   const bio = player.bio ?? "";
 
   function saveBio() {
@@ -58,150 +40,54 @@ export default function Hero() {
     setEditingBio(false);
   }
 
-  function cancelBio() {
-    setEditingBio(false);
-  }
+  const bioContent = editingBio ? (
+    <div>
+      <textarea
+        value={draftBio}
+        onChange={(e) => setDraftBio(e.target.value)}
+        rows={2}
+        placeholder="Tell people a bit about yourself…"
+        aria-label="Bio"
+        className="w-full resize-none rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+      />
+      <div className="mt-2 flex items-center gap-2">
+        <button
+          onClick={saveBio}
+          className="flex items-center gap-1 rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground"
+        >
+          <Check size={12} />
+          Save
+        </button>
+        <button
+          onClick={() => setEditingBio(false)}
+          className="rounded-md px-3 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  ) : (
+    <div className="flex items-start gap-2">
+      <p className="text-sm text-muted-foreground">{bio}</p>
+      <button
+        onClick={() => { setDraftBio(bio); setEditingBio(true); }}
+        aria-label="Edit bio"
+        className="shrink-0 rounded-md p-0.5 text-muted-foreground/50 transition-colors hover:bg-accent hover:text-foreground"
+      >
+        <Pencil size={13} />
+      </button>
+    </div>
+  );
 
   return (
-    <div className="mx-auto max-w-2xl">
-      {/* Profile card */}
-      <div className="mb-4 rounded-lg border border-border bg-card p-5">
-        <div className="flex items-start gap-5">
-          {/* Avatar */}
-          <div className="h-16 w-16 shrink-0">
-            <img
-              src={avatarSrc(player)}
-              alt={displayName}
-              className="h-full w-full rounded-full object-cover"
-              onError={(e) => {
-                const target = e.currentTarget;
-                target.style.display = "none";
-                target.nextElementSibling?.removeAttribute("hidden");
-              }}
-            />
-            <div
-              hidden
-              className="flex h-full w-full items-center justify-center rounded-full text-xl font-bold text-white"
-              style={{ backgroundColor: player.color }}
-            >
-              {initials(displayName)}
-            </div>
-          </div>
-
-          {/* Name, handle, bio */}
-          <div className="min-w-0 flex-1">
-            <p className="mb-1 text-xl font-bold leading-tight">{displayName}</p>
-
-            <div className="mb-3 text-sm text-muted-foreground">
-              <span>@{player.handle}</span>
-              <p className="text-xs text-muted-foreground/60">Username and avatar provided by Discord</p>
-            </div>
-
-            {editingBio ? (
-              <div>
-                <textarea
-                  value={draftBio}
-                  onChange={(e) => setDraftBio(e.target.value)}
-                  rows={2}
-                  placeholder="Tell people a bit about yourself…"
-                  aria-label="Bio"
-                  className="w-full resize-none rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-                />
-                <div className="mt-2 flex items-center gap-2">
-                  <button
-                    onClick={saveBio}
-                    className="flex items-center gap-1 rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground"
-                  >
-                    <Check size={12} />
-                    Save
-                  </button>
-                  <button
-                    onClick={cancelBio}
-                    className="rounded-md px-3 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="flex items-start gap-2">
-                <p className="text-sm text-muted-foreground">{bio}</p>
-                <button
-                  onClick={() => {
-                    setDraftBio(bio);
-                    setEditingBio(true);
-                  }}
-                  aria-label="Edit bio"
-                  className="shrink-0 rounded-md p-0.5 text-muted-foreground/50 transition-colors hover:bg-accent hover:text-foreground"
-                >
-                  <Pencil size={13} />
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Stats */}
-      <div className="mb-6 grid grid-cols-4 divide-x divide-border rounded-lg border border-border bg-card">
-        {[
-          { label: "Journeys", value: journeys.length, onClick: undefined },
-          { label: "Hours", value: totalHours(journeys), onClick: undefined },
-          {
-            label: "Followers",
-            value: player.followers ?? followers.length,
-            onClick: () => setFollowList({ title: "Followers", players: followers }),
-          },
-          {
-            label: "Following",
-            value: player.following ?? following.length,
-            onClick: () => setFollowList({ title: "Following", players: following }),
-          },
-        ].map(({ label, value, onClick }) =>
-          onClick ? (
-            <button
-              key={label}
-              onClick={onClick}
-              className="flex flex-col items-center py-4 transition-colors hover:bg-accent/50"
-            >
-              <span className="text-lg font-bold">{value}</span>
-              <span className="text-xs text-muted-foreground">{label}</span>
-            </button>
-          ) : (
-            <div key={label} className="flex flex-col items-center py-4">
-              <span className="text-lg font-bold">{value}</span>
-              <span className="text-xs text-muted-foreground">{label}</span>
-            </div>
-          ),
-        )}
-      </div>
-
-      {/* Journeys */}
-      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-        Your journeys
-      </h2>
-
-      {journeys.length > 0 ? (
-        <div className="flex flex-col gap-3">
-          {journeys.map((journey) => (
-            <JourneyCard key={journey.id} journey={journey} queryKey={["journeys", "user"]} />
-          ))}
-        </div>
-      ) : (
-        <div className="rounded-lg border border-border bg-card px-4 py-12 text-center text-sm text-muted-foreground">
-          No journeys yet.
-        </div>
-      )}
-
-      <div className="h-8" />
-
-      {followList && (
-        <FollowListModal
-          title={followList.title}
-          players={followList.players}
-          onClose={() => setFollowList(null)}
-        />
-      )}
-    </div>
+    <ProfileView
+      player={player}
+      journeys={journeys}
+      followers={followers}
+      following={following}
+      journeyQueryKey={["journeys", "user"]}
+      sectionTitle="Your journeys"
+      bioContent={bioContent}
+    />
   );
 }

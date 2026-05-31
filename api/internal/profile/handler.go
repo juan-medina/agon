@@ -25,6 +25,7 @@ func NewHandler(pool *pgxpool.Pool, jwtPriv ed25519.PrivateKey) *Handler {
 func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/me", h.getMe)
 	mux.HandleFunc("PATCH /api/me", h.patchMe)
+	mux.HandleFunc("GET /api/players/{id}", h.getPlayer)
 }
 
 func (h *Handler) authenticate(w http.ResponseWriter, r *http.Request) (string, bool) {
@@ -72,6 +73,34 @@ func (h *Handler) getMe(w http.ResponseWriter, r *http.Request) {
 		Bio:       user.Bio,
 		Color:     user.Color,
 		IsAdmin:   user.IsAdmin,
+	})
+}
+
+func (h *Handler) getPlayer(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	user, err := db.GetUser(r.Context(), h.pool, id)
+	if err != nil {
+		http.Error(w, `{"error":"not_found"}`, http.StatusNotFound)
+		return
+	}
+
+	type playerResponse struct {
+		ID        string  `json:"id"`
+		Handle    string  `json:"handle"`
+		Name      string  `json:"name"`
+		AvatarURL *string `json:"avatar_url,omitempty"`
+		Bio       *string `json:"bio,omitempty"`
+		Color     string  `json:"color"`
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(playerResponse{
+		ID:        user.ID,
+		Handle:    user.Handle,
+		Name:      user.Name,
+		AvatarURL: user.AvatarURL,
+		Bio:       user.Bio,
+		Color:     user.Color,
 	})
 }
 

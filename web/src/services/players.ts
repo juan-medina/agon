@@ -3,45 +3,82 @@
 
 import type { Player } from "@/models/player";
 import type { Journey } from "@/models/journey";
-import type { GameActivity } from "@/models/game";
 import {
-  PLAYERS,
-  JOURNEYS,
   MY_FOLLOWING,
   MY_FOLLOWERS,
   MY_PLAYER,
   MOCK_FOLLOW_LISTS,
-  MOCK_GAME_ACTIVITY,
 } from "@/lib/mock";
 import { likedIds } from "./journeys";
+import { API_BASE } from "@/lib/api";
+import { formatDuration } from "@/lib/time";
 
-const _players: Player[] = [...PLAYERS];
-const _journeys: Journey[] = [...JOURNEYS];
 const _myFollowing: Player[] = [...MY_FOLLOWING];
 const _myFollowers: Player[] = [...MY_FOLLOWERS];
 const _myPlayerId: string = MY_PLAYER.id;
 const _followLists: Record<string, { followers: Player[]; following: Player[] }> = MOCK_FOLLOW_LISTS;
-const _gameActivity: GameActivity[] = [...MOCK_GAME_ACTIVITY];
 
 const followingHandles = new Set<string>(_myFollowing.map((p) => p.handle));
+
+type RawPlayer = {
+  id: string;
+  handle: string;
+  name: string;
+  avatar_url?: string;
+  bio?: string;
+  color: string;
+};
+
+type RawJourney = {
+  id: string;
+  igdb_id: number;
+  game: string;
+  cover_url?: string;
+  genres: string[];
+  played_at: string;
+  duration_seconds: number;
+  log?: string;
+};
 
 export function isFollowingHandle(handle: string): boolean {
   return followingHandles.has(handle);
 }
 
 export async function getPlayer(id: string): Promise<Player | undefined> {
-  const fromPlayers = _players.find((p) => p.id === id);
-  if (fromPlayers) return fromPlayers;
-  const fromJourneys = _journeys.find((j) => j.player.id === id)?.player;
-  if (fromJourneys) return fromJourneys;
-  return _gameActivity.flatMap((g) => g.entries)
-    .find((e) => e.player.id === id)?.player;
+  const resp = await fetch(`${API_BASE}/api/players/${id}`);
+  if (resp.status === 404) return undefined;
+  if (!resp.ok) throw new Error(`get player: ${resp.status}`);
+  const p: RawPlayer = await resp.json();
+  return {
+    id: p.id,
+    handle: p.handle,
+    name: p.name,
+    avatarUrl: p.avatar_url,
+    bio: p.bio,
+    color: p.color,
+  };
 }
 
 export async function getPlayerJourneys(id: string): Promise<Journey[]> {
-  return _journeys
-    .filter((j) => j.player.id === id)
-    .map((j) => ({ ...j, liked: likedIds.has(j.id) }));
+  const [player, resp] = await Promise.all([
+    getPlayer(id),
+    fetch(`${API_BASE}/api/players/${id}/journeys`),
+  ]);
+  if (!player) return [];
+  if (!resp.ok) throw new Error(`get player journeys: ${resp.status}`);
+  const data: { journeys: RawJourney[] } = await resp.json();
+  return (data.journeys ?? []).map((j): Journey => ({
+    id: j.id,
+    player,
+    game: j.game,
+    coverUrl: j.cover_url,
+    genres: j.genres,
+    duration: formatDuration(j.duration_seconds ?? 0),
+    playedAt: new Date(j.played_at),
+    log: j.log,
+    likes: 0,
+    liked: likedIds.has(j.id),
+  }));
 }
 
 export async function getFollowers(playerId: string): Promise<Player[]> {

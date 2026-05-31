@@ -36,6 +36,7 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("DELETE /api/players/me/journeys/{id}", h.delete)
 	mux.HandleFunc("GET /api/players/me/journeys", h.listMine)
 	mux.HandleFunc("GET /api/players/me/journeys/pending", h.listPending)
+	mux.HandleFunc("GET /api/players/{id}/journeys", h.listByPlayer)
 	mux.HandleFunc("POST /api/players/me/journeys/pending/{id}/confirm", h.confirm)
 	mux.HandleFunc("POST /api/players/me/journeys/pending/{id}/discard", h.discard)
 	mux.HandleFunc("POST /api/players/me/journeys/pending/{id}/exclude", h.exclude)
@@ -394,6 +395,57 @@ func (h *Handler) listMine(w http.ResponseWriter, r *http.Request) {
 	journeys, err := db.ListJourneysByUser(r.Context(), h.pool, userID, limit+1, cursor)
 	if err != nil {
 		log.Printf("journeys/listMine: %v", err)
+		http.Error(w, `{"error":"internal_error"}`, http.StatusInternalServerError)
+		return
+	}
+
+	var nextCursor string
+	if len(journeys) > limit {
+		nextCursor = journeys[limit].PlayedAt.UTC().Format(time.RFC3339)
+		journeys = journeys[:limit]
+	}
+
+	resp := make([]journeyResponse, 0, len(journeys))
+	for _, j := range journeys {
+		item := journeyResponse{
+			ID:              j.ID,
+			IGDBID:          j.IGDBID,
+			GameTitle:       j.GameName,
+			CoverURL:        j.CoverURL,
+			Genres:          j.Genres,
+			StartedAt:       j.StartedAt.UTC().Format(time.RFC3339),
+			EndedAt:         j.EndedAt.UTC().Format(time.RFC3339),
+			DurationSeconds: j.DurationSeconds,
+			Log:             j.Log,
+			PlayedAt:        j.PlayedAt.UTC().Format(time.RFC3339),
+		}
+		resp = append(resp, item)
+	}
+
+	result := map[string]any{"journeys": resp}
+	if nextCursor != "" {
+		result["next_cursor"] = nextCursor
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(result)
+}
+
+func (h *Handler) listByPlayer(w http.ResponseWriter, r *http.Request) {
+	userID := r.PathValue("id")
+
+	limitStr := r.URL.Query().Get("limit")
+	limit := 20
+	if limitStr != "" {
+		if n, err := strconv.Atoi(limitStr); err == nil && n > 0 && n <= 50 {
+			limit = n
+		}
+	}
+	cursor := r.URL.Query().Get("cursor")
+
+	journeys, err := db.ListJourneysByUser(r.Context(), h.pool, userID, limit+1, cursor)
+	if err != nil {
+		log.Printf("journeys/listByPlayer: %v", err)
 		http.Error(w, `{"error":"internal_error"}`, http.StatusInternalServerError)
 		return
 	}
