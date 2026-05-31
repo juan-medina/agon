@@ -1,16 +1,21 @@
 // SPDX-FileCopyrightText: 2026 Juan Medina
 // SPDX-License-Identifier: MIT
-import { useNavigate, useParams } from "react-router";
+import { Navigate, useNavigate, useParams } from "react-router";
 import { Check, ChevronLeft, UserPlus } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getPlayer, getPlayerJourneys, getFollowers, getFollowing, toggleFollow } from "@/services/players";
-import { MY_PLAYER_ID } from "@/services/auth";
+import { getCurrentPlayer, MY_PLAYER_ID } from "@/services/auth";
 import ProfileView from "@/components/ProfileView";
 
 export default function PlayerProfile() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+
+  const { data: currentPlayer, isLoading: currentPlayerLoading } = useQuery({
+    queryKey: ["auth", "me"],
+    queryFn: getCurrentPlayer,
+  });
 
   const { data: player } = useQuery({
     queryKey: ["player", id],
@@ -52,6 +57,9 @@ export default function PlayerProfile() {
       queryClient.invalidateQueries({ queryKey: ["follow-list"] });
     },
   });
+
+  if (currentPlayerLoading) return null;
+  if (currentPlayer && id === currentPlayer.id) return <Navigate to="/hero" replace />;
 
   if (!player) {
     return (

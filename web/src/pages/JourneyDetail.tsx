@@ -24,7 +24,8 @@ function PlayerAvatar({ player, size = "md" }: { player: Player; size?: "sm" | "
   );
 }
 
-function JourneyPlayerRow({ entry }: { entry: JourneyPlayer }) {
+function JourneyPlayerRow({ entry, currentPlayerId }: { entry: JourneyPlayer; currentPlayerId?: string }) {
+  const isMe = entry.player.id === currentPlayerId;
   const [following, setFollowing] = useState(entry.isFollowing);
   const followMutation = useMutation({
     mutationFn: () => toggleFollow(entry.player.handle),
@@ -48,26 +49,30 @@ function JourneyPlayerRow({ entry }: { entry: JourneyPlayer }) {
           </div>
         </div>
       </Link>
-      <button
-        onClick={() => followMutation.mutate()}
-        className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
-          following
-            ? "border-border bg-muted text-muted-foreground"
-            : "border-primary text-primary hover:bg-primary hover:text-primary-foreground"
-        }`}
-      >
-        {following ? (
-          <>
-            <Check size={12} />
-            Following
-          </>
-        ) : (
-          <>
-            <UserPlus size={12} />
-            Follow
-          </>
-        )}
-      </button>
+      {isMe ? (
+        <span className="shrink-0 text-xs text-muted-foreground">You</span>
+      ) : (
+        <button
+          onClick={() => followMutation.mutate()}
+          className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+            following
+              ? "border-border bg-muted text-muted-foreground"
+              : "border-primary text-primary hover:bg-primary hover:text-primary-foreground"
+          }`}
+        >
+          {following ? (
+            <>
+              <Check size={12} />
+              Following
+            </>
+          ) : (
+            <>
+              <UserPlus size={12} />
+              Follow
+            </>
+          )}
+        </button>
+      )}
     </div>
   );
 }
@@ -387,7 +392,7 @@ export default function JourneyDetail() {
             </p>
             <div className="divide-y divide-border">
               {(journeyPlayers?.friends ?? []).map((entry) => (
-                <JourneyPlayerRow key={entry.player.id} entry={entry} />
+                <JourneyPlayerRow key={entry.player.id} entry={entry} currentPlayerId={currentPlayer?.id} />
               ))}
             </div>
           </div>
@@ -400,7 +405,7 @@ export default function JourneyDetail() {
             </p>
             <div className="divide-y divide-border">
               {(journeyPlayers?.others ?? []).map((entry) => (
-                <JourneyPlayerRow key={entry.player.id} entry={entry} />
+                <JourneyPlayerRow key={entry.player.id} entry={entry} currentPlayerId={currentPlayer?.id} />
               ))}
             </div>
           </div>
