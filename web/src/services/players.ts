@@ -3,7 +3,6 @@
 
 import type { Player } from "@/models/player";
 import type { Journey } from "@/models/journey";
-import { likedIds } from "./journeys";
 import { API_BASE } from "@/lib/api";
 import { formatDuration } from "@/lib/time";
 
@@ -28,6 +27,8 @@ type RawJourney = {
   played_at: string;
   duration_seconds: number;
   log?: string;
+  like_count?: number;
+  is_liked?: boolean;
 };
 
 function rawToPlayer(p: RawPlayer): Player {
@@ -60,7 +61,7 @@ export async function getIsFollowing(playerId: string): Promise<boolean> {
 export async function getPlayerJourneys(id: string): Promise<Journey[]> {
   const [player, resp] = await Promise.all([
     getPlayer(id),
-    fetch(`${API_BASE}/api/players/${id}/journeys`),
+    fetch(`${API_BASE}/api/players/${id}/journeys`, { credentials: "include" }),
   ]);
   if (!player) return [];
   if (!resp.ok) throw new Error(`get player journeys: ${resp.status}`);
@@ -74,8 +75,8 @@ export async function getPlayerJourneys(id: string): Promise<Journey[]> {
     duration: formatDuration(j.duration_seconds ?? 0),
     playedAt: new Date(j.played_at),
     log: j.log,
-    likes: 0,
-    liked: likedIds.has(j.id),
+    likes: j.like_count ?? 0,
+    liked: j.is_liked ?? false,
   }));
 }
 

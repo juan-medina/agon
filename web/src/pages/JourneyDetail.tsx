@@ -171,7 +171,7 @@ export default function JourneyDetail() {
   });
 
   const likeMutation = useMutation({
-    mutationFn: toggleLike,
+    mutationFn: ({ id: jid, liked }: { id: string; liked: boolean }) => toggleLike({ id: jid, liked }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["journey", id] }),
   });
 
@@ -200,8 +200,6 @@ export default function JourneyDetail() {
       </div>
     );
   }
-
-  const likeCount = journey.likes + (journey.liked ? 1 : 0);
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -315,37 +313,48 @@ export default function JourneyDetail() {
       {/* Likes */}
       <div className="mt-4 rounded-lg border border-border bg-card p-4">
         <div className="flex items-center gap-4">
-          <button
-            onClick={() => likeMutation.mutate(journey.id)}
-            className="flex items-center gap-2 transition-colors"
-            aria-label={journey.liked ? "Unlike" : "Like"}
-          >
-            <Heart
-              size={22}
-              className={journey.liked ? "fill-rose-500 text-rose-500" : "text-muted-foreground hover:text-rose-400"}
-            />
-            <span className={`text-sm font-medium ${journey.liked ? "text-rose-500" : "text-muted-foreground"}`}>
-              {likeCount}
-            </span>
-          </button>
-          <button
-            onClick={() => setShowLikers(true)}
-            className="flex items-center gap-2 transition-opacity hover:opacity-75"
-            aria-label="See who liked this"
-          >
-            <div className="flex -space-x-2">
-              {likers.map((liker) => (
-                <img
-                  key={liker.id}
-                  src={avatarSrc(liker)}
-                  alt={liker.name}
-                  title={liker.name}
-                  className="h-7 w-7 rounded-full border-2 border-card object-cover"
-                />
-              ))}
+          {isOwner ? (
+            <div className="flex items-center gap-2">
+              <Heart size={22} className="text-muted-foreground/40" />
+              <span className="text-sm font-medium text-muted-foreground">{journey.likes}</span>
             </div>
-            <span className="text-xs text-muted-foreground">+42 more</span>
-          </button>
+          ) : (
+            <button
+              onClick={() => likeMutation.mutate({ id: journey.id, liked: journey.liked })}
+              className="flex items-center gap-2 transition-colors"
+              aria-label={journey.liked ? "Unlike" : "Like"}
+            >
+              <Heart
+                size={22}
+                className={journey.liked ? "fill-rose-500 text-rose-500" : "text-muted-foreground hover:text-rose-400"}
+              />
+              <span className={`text-sm font-medium ${journey.liked ? "text-rose-500" : "text-muted-foreground"}`}>
+                {journey.likes}
+              </span>
+            </button>
+          )}
+          {likers.length > 0 && (
+            <button
+              onClick={() => setShowLikers(true)}
+              className="flex items-center gap-2 transition-opacity hover:opacity-75"
+              aria-label="See who liked this"
+            >
+              <div className="flex -space-x-2">
+                {likers.slice(0, 5).map((liker) => (
+                  <img
+                    key={liker.id}
+                    src={avatarSrc(liker)}
+                    alt={liker.name}
+                    title={liker.name}
+                    className="h-7 w-7 rounded-full border-2 border-card object-cover"
+                  />
+                ))}
+              </div>
+              {likers.length > 5 && (
+                <span className="text-xs text-muted-foreground">+{likers.length - 5} more</span>
+              )}
+            </button>
+          )}
         </div>
       </div>
 

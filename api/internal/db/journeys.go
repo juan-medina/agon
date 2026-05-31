@@ -105,6 +105,8 @@ type Journey struct {
 	Log             *string
 	PlayedAt        time.Time
 	CreatedAt       time.Time
+	LikeCount       int
+	IsLiked         bool
 }
 
 // InsertJourney writes a confirmed journey row and returns the new ID.
@@ -150,24 +152,42 @@ type JourneyWithPlayer struct {
 	PlayerName      string
 	PlayerAvatarURL *string
 	PlayerColor     string
+	LikeCount       int
+	IsLiked         bool
 }
 
 // GetJourneyByID returns a single confirmed journey by ID, joined with igdb_games and users.
-func GetJourneyByID(ctx context.Context, pool *pgxpool.Pool, id string) (JourneyWithPlayer, error) {
-	var j JourneyWithPlayer
-	err := pool.QueryRow(ctx, `
+// viewerID is the authenticated user requesting the journey; pass "" for anonymous requests.
+func GetJourneyByID(ctx context.Context, pool *pgxpool.Pool, id, viewerID string) (JourneyWithPlayer, error) {
+	const base = `
 		SELECT j.id, j.user_id, j.igdb_id, g.name, g.cover_url, g.genres,
 		       j.duration_seconds, j.log, j.played_at,
-		       u.handle, u.name, u.avatar_url, u.color
+		       u.handle, u.name, u.avatar_url, u.color,
+		       (SELECT COUNT(*) FROM likes l WHERE l.journey_id = j.id)`
+	const tail = `
 		FROM journeys j
 		JOIN igdb_games g ON g.igdb_id = j.igdb_id
 		JOIN users u ON u.id = j.user_id
-		WHERE j.id = $1
-	`, id).Scan(
-		&j.ID, &j.UserID, &j.IGDBID, &j.GameName, &j.CoverURL, &j.Genres,
-		&j.DurationSeconds, &j.Log, &j.PlayedAt,
-		&j.PlayerHandle, &j.PlayerName, &j.PlayerAvatarURL, &j.PlayerColor,
-	)
+		WHERE j.id = $1`
+
+	var j JourneyWithPlayer
+	var err error
+	if viewerID == "" {
+		err = pool.QueryRow(ctx, base+`, false`+tail, id).Scan(
+			&j.ID, &j.UserID, &j.IGDBID, &j.GameName, &j.CoverURL, &j.Genres,
+			&j.DurationSeconds, &j.Log, &j.PlayedAt,
+			&j.PlayerHandle, &j.PlayerName, &j.PlayerAvatarURL, &j.PlayerColor,
+			&j.LikeCount, &j.IsLiked,
+		)
+	} else {
+		err = pool.QueryRow(ctx, base+`,
+		       EXISTS(SELECT 1 FROM likes WHERE journey_id = j.id AND user_id = $2)`+tail, id, viewerID).Scan(
+			&j.ID, &j.UserID, &j.IGDBID, &j.GameName, &j.CoverURL, &j.Genres,
+			&j.DurationSeconds, &j.Log, &j.PlayedAt,
+			&j.PlayerHandle, &j.PlayerName, &j.PlayerAvatarURL, &j.PlayerColor,
+			&j.LikeCount, &j.IsLiked,
+		)
+	}
 	if err == pgx.ErrNoRows {
 		return JourneyWithPlayer{}, fmt.Errorf("journey not found: %s", id)
 	}
@@ -302,7 +322,9 @@ func GetFollowingFeed(ctx context.Context, pool *pgxpool.Pool, userID string, li
 	const cols = `
 		j.id, j.user_id, j.igdb_id, g.name, g.cover_url, g.genres,
 		j.duration_seconds, j.log, j.played_at,
-		u.handle, u.name, u.avatar_url, u.color`
+		u.handle, u.name, u.avatar_url, u.color,
+		(SELECT COUNT(*) FROM likes l WHERE l.journey_id = j.id),
+		EXISTS(SELECT 1 FROM likes l WHERE l.journey_id = j.id AND l.user_id = $1)`
 
 	var rows pgx.Rows
 	var err error
@@ -342,6 +364,7 @@ func GetFollowingFeed(ctx context.Context, pool *pgxpool.Pool, userID string, li
 			&j.ID, &j.UserID, &j.IGDBID, &j.GameName, &j.CoverURL, &j.Genres,
 			&j.DurationSeconds, &j.Log, &j.PlayedAt,
 			&j.PlayerHandle, &j.PlayerName, &j.PlayerAvatarURL, &j.PlayerColor,
+			&j.LikeCount, &j.IsLiked,
 		); err != nil {
 			return nil, err
 		}
@@ -431,32 +454,38 @@ func DeleteComment(ctx context.Context, pool *pgxpool.Pool, commentID, userID st
 
 // ListJourneysByUser returns confirmed journeys for the given user ID joined
 // with igdb_games, ordered by played_at descending, with optional cursor-based pagination.
-func ListJourneysByUser(ctx context.Context, pool *pgxpool.Pool, userID string, limit int, cursor string) ([]Journey, error) {
+// viewerID is the authenticated viewer; pass "" for anonymous or when listing own journeys.
+func ListJourneysByUser(ctx context.Context, pool *pgxpool.Pool, userID string, limit int, cursor, viewerID string) ([]Journey, error) {
+	const baseCols = `
+		j.id, j.user_id, j.igdb_id, g.name, g.cover_url, g.genres,
+		j.started_at, j.ended_at, j.duration_seconds, j.log, j.played_at, j.created_at,
+		(SELECT COUNT(*) FROM likes l WHERE l.journey_id = j.id)`
+	const joins = `
+		FROM journeys j
+		JOIN igdb_games g ON g.igdb_id = j.igdb_id`
+
 	var rows pgx.Rows
 	var err error
 
-	const cols = `
-		j.id, j.user_id, j.igdb_id, g.name, g.cover_url, g.genres,
-		j.started_at, j.ended_at, j.duration_seconds, j.log, j.played_at, j.created_at`
-
-	if cursor == "" {
-		rows, err = pool.Query(ctx, `
-			SELECT`+cols+`
-			FROM journeys j
-			JOIN igdb_games g ON g.igdb_id = j.igdb_id
-			WHERE j.user_id = $1
-			ORDER BY j.played_at DESC
-			LIMIT $2
-		`, userID, limit)
-	} else {
-		rows, err = pool.Query(ctx, `
-			SELECT`+cols+`
-			FROM journeys j
-			JOIN igdb_games g ON g.igdb_id = j.igdb_id
-			WHERE j.user_id = $1 AND j.played_at < $2
-			ORDER BY j.played_at DESC
-			LIMIT $3
-		`, userID, cursor, limit)
+	switch {
+	case viewerID == "" && cursor == "":
+		rows, err = pool.Query(ctx, `SELECT`+baseCols+`, false`+joins+`
+			WHERE j.user_id = $1 ORDER BY j.played_at DESC LIMIT $2`,
+			userID, limit)
+	case viewerID == "" && cursor != "":
+		rows, err = pool.Query(ctx, `SELECT`+baseCols+`, false`+joins+`
+			WHERE j.user_id = $1 AND j.played_at < $2 ORDER BY j.played_at DESC LIMIT $3`,
+			userID, cursor, limit)
+	case viewerID != "" && cursor == "":
+		rows, err = pool.Query(ctx, `SELECT`+baseCols+`,
+			EXISTS(SELECT 1 FROM likes WHERE journey_id = j.id AND user_id = $3)`+joins+`
+			WHERE j.user_id = $1 ORDER BY j.played_at DESC LIMIT $2`,
+			userID, limit, viewerID)
+	default: // viewerID != "" && cursor != ""
+		rows, err = pool.Query(ctx, `SELECT`+baseCols+`,
+			EXISTS(SELECT 1 FROM likes WHERE journey_id = j.id AND user_id = $4)`+joins+`
+			WHERE j.user_id = $1 AND j.played_at < $2 ORDER BY j.played_at DESC LIMIT $3`,
+			userID, cursor, limit, viewerID)
 	}
 	if err != nil {
 		return nil, err
@@ -470,6 +499,7 @@ func ListJourneysByUser(ctx context.Context, pool *pgxpool.Pool, userID string, 
 			&j.ID, &j.UserID, &j.IGDBID, &j.GameName, &j.CoverURL, &j.Genres,
 			&j.StartedAt, &j.EndedAt, &j.DurationSeconds,
 			&j.Log, &j.PlayedAt, &j.CreatedAt,
+			&j.LikeCount, &j.IsLiked,
 		); err != nil {
 			return nil, err
 		}

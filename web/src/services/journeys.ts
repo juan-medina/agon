@@ -5,14 +5,11 @@ import type { Journey, PendingJourney, NewJourney } from "@/models/journey";
 import type { Comment, JourneyPlayer } from "@/models/game";
 import type { Player } from "@/models/player";
 import {
-  MOCK_LIKERS,
   MOCK_PENDING_JOURNEYS,
 } from "@/lib/mock";
 import { API_BASE } from "@/lib/api";
 import { formatDuration } from "@/lib/time";
 import { getCurrentPlayer } from "./auth";
-
-export const likedIds = new Set<string>();
 
 let _discardedIds = new Set<string>();
 let _confirmedJourneyIds = new Set<string>();
@@ -34,6 +31,8 @@ type RawJourneyDetail = {
     avatar_url?: string;
     color: string;
   };
+  like_count: number;
+  is_liked: boolean;
 };
 
 type RawPendingJourney = {
@@ -51,7 +50,6 @@ type RawPendingJourney = {
 
 type RawJourney = {
   id: string;
-  uri: string;
   igdb_id: number;
   game: string;
   cover_url?: string;
@@ -59,6 +57,7 @@ type RawJourney = {
   played_at: string;
   duration_seconds: number;
   log?: string;
+  like_count?: number;
 };
 
 export async function getUserJourneys(): Promise<Journey[]> {
@@ -79,8 +78,8 @@ export async function getUserJourneys(): Promise<Journey[]> {
     duration: formatDuration(j.duration_seconds ?? 0),
     playedAt: new Date(j.played_at),
     log: j.log,
-    likes: 0,
-    liked: likedIds.has(j.id),
+    likes: j.like_count ?? 0,
+    liked: false,
   }));
 }
 
@@ -111,9 +110,12 @@ export async function getPendingJourneys(): Promise<PendingJourney[]> {
   });
 }
 
-export async function toggleLike(journeyId: string): Promise<void> {
-  if (likedIds.has(journeyId)) likedIds.delete(journeyId);
-  else likedIds.add(journeyId);
+export async function toggleLike({ id, liked }: { id: string; liked: boolean }): Promise<void> {
+  const resp = await fetch(`${API_BASE}/api/journeys/${id}/like`, {
+    method: liked ? "DELETE" : "POST",
+    credentials: "include",
+  });
+  if (!resp.ok) throw new Error(`toggle like: ${resp.status}`);
 }
 
 export async function addJourney(input: NewJourney): Promise<void> {
@@ -184,7 +186,13 @@ export async function excludePendingJourney(pendingId: string): Promise<void> {
   }
 }
 
-const _likers: Player[] = [...MOCK_LIKERS];
+type RawLiker = {
+  id: string;
+  handle: string;
+  name: string;
+  avatar_url?: string;
+  color: string;
+};
 
 type RawComment = {
   id: string;
@@ -213,8 +221,8 @@ export async function getJourney(id: string): Promise<Journey | undefined> {
     duration: formatDuration(j.duration_seconds),
     playedAt: new Date(j.played_at),
     log: j.log,
-    likes: 0,
-    liked: likedIds.has(j.id),
+    likes: j.like_count,
+    liked: j.is_liked,
   };
 }
 
@@ -236,8 +244,17 @@ export async function getComments(journeyId: string): Promise<Comment[]> {
   }));
 }
 
-export async function getLikers(_journeyId: string): Promise<Player[]> {
-  return [..._likers];
+export async function getLikers(journeyId: string): Promise<Player[]> {
+  const resp = await fetch(`${API_BASE}/api/journeys/${journeyId}/likers`, { credentials: "include" });
+  if (!resp.ok) return [];
+  const data: { likers: RawLiker[] } = await resp.json();
+  return (data.likers ?? []).map((l): Player => ({
+    id: l.id,
+    handle: l.handle,
+    name: l.name,
+    avatarUrl: l.avatar_url,
+    color: l.color,
+  }));
 }
 
 export async function getJourneyPlayers(journeyId: string): Promise<{
@@ -300,7 +317,6 @@ export async function deleteComment(journeyId: string, commentId: string): Promi
 }
 
 export function _reset(): void {
-  likedIds.clear();
   _discardedIds.clear();
   _confirmedJourneyIds.clear();
   _pendingJourneys = [...MOCK_PENDING_JOURNEYS];

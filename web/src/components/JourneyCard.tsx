@@ -27,8 +27,6 @@ export default function JourneyCard({ journey, queryKey, showPlayer = false }: J
     onSuccess: () => queryClient.invalidateQueries({ queryKey }),
   });
 
-  const likeCount = journey.likes + (journey.liked ? 1 : 0);
-
   return (
     <article
       className="flex cursor-pointer gap-4 rounded-lg border border-border bg-card p-4 transition-colors hover:bg-accent/5"
@@ -91,13 +89,13 @@ export default function JourneyCard({ journey, queryKey, showPlayer = false }: J
         {isOwn ? (
           <div className="flex items-center gap-1.5">
             <Heart size={15} className="text-muted-foreground/40" />
-            {likeCount > 0 && (
-              <span className="text-xs text-muted-foreground">{likeCount}</span>
+            {journey.likes > 0 && (
+              <span className="text-xs text-muted-foreground">{journey.likes}</span>
             )}
           </div>
         ) : (
           <button
-            onClick={(e) => { e.stopPropagation(); likeMutation.mutate(journey.id); }}
+            onClick={(e) => { e.stopPropagation(); likeMutation.mutate({ id: journey.id, liked: journey.liked }); }}
             className="flex items-center gap-1.5 transition-colors"
             aria-label={journey.liked ? "Unlike" : "Like"}
           >
@@ -105,9 +103,9 @@ export default function JourneyCard({ journey, queryKey, showPlayer = false }: J
               size={15}
               className={journey.liked ? "fill-rose-500 text-rose-500" : "text-muted-foreground hover:text-rose-400"}
             />
-            {likeCount > 0 && (
+            {journey.likes > 0 && (
               <span className={`text-xs ${journey.liked ? "text-rose-500" : "text-muted-foreground"}`}>
-                {likeCount}
+                {journey.likes}
               </span>
             )}
           </button>

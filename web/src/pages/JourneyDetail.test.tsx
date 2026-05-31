@@ -16,14 +16,18 @@ const s2 = JOURNEYS.find((j) => j.id === "s2")!;
 const initiallyFollowed = new Set(["p2", "p3", "p4"]);
 let followedIds: Set<string>;
 let mockComments: typeof MOCK_COMMENTS;
+let likedByMe: Set<string>;
 
 function journeyResponse(j: typeof s1, igdbId: number, durationSeconds: number) {
+  const liked = likedByMe.has(j.id);
   return JSON.stringify({
     id: j.id, igdb_id: igdbId, game: j.game,
     cover_url: j.coverUrl ?? null, genres: j.genres,
     duration_seconds: durationSeconds, log: j.log ?? null,
     played_at: j.playedAt.toISOString(),
     player: { id: j.player.id, handle: j.player.handle, name: j.player.name, avatar_url: null, color: j.player.color },
+    like_count: liked ? 1 : 0,
+    is_liked: liked,
   });
 }
 
@@ -56,6 +60,23 @@ function makeFetch() {
       const player = PLAYERS.find((p) => p.id === pid);
       if (!player) return new Response("not found", { status: 404 });
       return json(JSON.stringify({ id: player.id, handle: player.handle, name: player.name, avatar_url: null, color: player.color, followers: 0, following: 0, is_following: followedIds.has(pid) }));
+    }
+
+    // Likes
+    if (/\/api\/journeys\/\w+\/like$/.test(url) && method === "POST") {
+      const jid = url.match(/\/api\/journeys\/(\w+)\/like$/)![1];
+      likedByMe.add(jid);
+      return new Response(null, { status: 204 });
+    }
+    if (/\/api\/journeys\/\w+\/like$/.test(url) && method === "DELETE") {
+      const jid = url.match(/\/api\/journeys\/(\w+)\/like$/)![1];
+      likedByMe.delete(jid);
+      return new Response(null, { status: 204 });
+    }
+    if (/\/api\/journeys\/\w+\/likers$/.test(url)) {
+      return json(JSON.stringify({ likers: [
+        { id: "l1", handle: "liker1.bsky.social", name: "Liker One", avatar_url: null, color: "#059669" },
+      ] }));
     }
 
     // Comments
@@ -124,6 +145,7 @@ function renderJourney(id: string) {
 beforeEach(() => {
   followedIds = new Set(initiallyFollowed);
   mockComments = [...MOCK_COMMENTS];
+  likedByMe = new Set();
   resetJourneys();
   resetPlayers();
   vi.stubGlobal("fetch", makeFetch());
@@ -142,7 +164,7 @@ describe("JourneyDetail", () => {
 
   it("liking a journey increments the displayed count by one", async () => {
     const user = userEvent.setup();
-    renderJourney("s1");
+    renderJourney("s2"); // s2 belongs to another player — Like button is interactive
     const likeButton = await screen.findByRole("button", { name: "Like" });
     const before = Number(likeButton.textContent);
     await user.click(likeButton);
@@ -152,7 +174,7 @@ describe("JourneyDetail", () => {
 
   it("unliking restores the original count", async () => {
     const user = userEvent.setup();
-    renderJourney("s1");
+    renderJourney("s2");
     const likeButton = await screen.findByRole("button", { name: "Like" });
     const original = Number(likeButton.textContent);
     await user.click(likeButton);
