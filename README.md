@@ -2,12 +2,11 @@
 
 > *ἀγών — a gathering, a contest, a session of play*
 
-Agōn is an open social network for gaming journeys. Log what you play, see what people you follow are playing, discover games through the people you trust.
+Agōn is a social network for gaming journeys. Log what you play, see what people you follow are playing, discover games through the people you trust.
 
 ## What it is
 
 - **Automatic journey detection** — a lightweight tray agent watches for running games using graphics API detection, no manual logging required
-- **Open and federated** — built on AT Proto, your data is yours and portable
 - **Social feed** — see what people you follow have been playing in real time
 - **Game discovery** — recommendations based on your play history and your network's
 

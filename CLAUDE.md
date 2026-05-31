@@ -4,7 +4,7 @@ Guidance for Claude Code when working in this repository. For architecture and d
 
 ## Project
 
-Agōn is an open social network for gaming journeys built on AT Proto. Three components in one monorepo:
+Agōn is an open social network for gaming journeys. Three components in one monorepo:
 
 - `api/` — Go API server
 - `agent/` — C# tray agent (Windows, Velopack)
@@ -76,17 +76,13 @@ When writing code that calls external services or downstream dependencies, never
 // SPDX-License-Identifier: MIT
 ```
 
-## AT Proto
-
-Journey records are published to AT Proto only when the user explicitly confirms them. Never write to the user's AT Proto repo without an explicit user action. Records are fully denormalised — all game metadata is baked in at publish time.
-
 ## IGDB
 
 All IGDB calls go through the Go API server. The Twitch client secret never reaches the frontend or the agent. Responses are cached in Postgres with a TTL. The IGDB proxy enforces a hard upstream rate limit of 4 req/s — a cache hit must never result in an IGDB call.
 
 ## Authentication
 
-Bluesky OAuth only. A Bluesky account is a hard requirement for using Agōn. Do not add alternative auth providers.
+Discord OAuth only. Users log in with their Discord account — highest account penetration among the target audience. Do not add alternative auth providers.
 
 ## Testing
 
