@@ -12,7 +12,8 @@ export default function Shell() {
     queryKey: ["auth", "me"],
     queryFn: getCurrentPlayer,
     retry: false,
-    refetchInterval: 5 * 60 * 1000, // revalidate session every 5 minutes
+    refetchInterval: 30_000,
+    refetchIntervalInBackground: false,
   });
 
   if (isLoading) return null;

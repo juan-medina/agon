@@ -66,6 +66,7 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/journeys/{id}/like", h.likeJourney)
 	mux.HandleFunc("DELETE /api/journeys/{id}/like", h.unlikeJourney)
 	mux.HandleFunc("POST /api/players/me/journeys", h.add)
+	mux.HandleFunc("PATCH /api/players/me/journeys/{id}", h.update)
 	mux.HandleFunc("DELETE /api/players/me/journeys/{id}", h.delete)
 	mux.HandleFunc("GET /api/players/me/journeys", h.listMine)
 	mux.HandleFunc("GET /api/players/me/journeys/pending", h.listPending)
@@ -564,6 +565,49 @@ func (h *Handler) add(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	_ = json.NewEncoder(w).Encode(map[string]string{"id": journeyID})
+}
+
+func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.authenticate(w, r)
+	if !ok {
+		return
+	}
+
+	id := r.PathValue("id")
+
+	var body struct {
+		IGDBID          int     `json:"igdb_id"`
+		DurationSeconds int     `json:"duration_seconds"`
+		PlayedAt        string  `json:"played_at"`
+		Log             *string `json:"log"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, `{"error":"invalid_request"}`, http.StatusBadRequest)
+		return
+	}
+	if body.IGDBID == 0 {
+		http.Error(w, `{"error":"invalid_request","message":"igdb_id is required"}`, http.StatusBadRequest)
+		return
+	}
+	if body.DurationSeconds < 60 {
+		http.Error(w, `{"error":"invalid_request","message":"duration_seconds must be at least 60"}`, http.StatusBadRequest)
+		return
+	}
+
+	endedAt := time.Now().UTC()
+	if body.PlayedAt != "" {
+		if t, err := time.Parse(time.RFC3339, body.PlayedAt); err == nil {
+			endedAt = t.UTC()
+		}
+	}
+
+	if err := db.UpdateJourney(r.Context(), h.pool, id, userID, body.IGDBID, body.DurationSeconds, endedAt, body.Log); err != nil {
+		log.Printf("journeys/update: %v", err)
+		http.Error(w, `{"error":"not_found"}`, http.StatusNotFound)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h *Handler) delete(w http.ResponseWriter, r *http.Request) {

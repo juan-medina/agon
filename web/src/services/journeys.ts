@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Juan Medina
 // SPDX-License-Identifier: MIT
 
-import type { Journey, PendingJourney, NewJourney } from "@/models/journey";
+import type { Journey, PendingJourney, NewJourney, UpdateJourney } from "@/models/journey";
 import type { Comment, JourneyPlayer } from "@/models/game";
 import type { Player } from "@/models/player";
 import { API_BASE } from "@/lib/api";
@@ -134,6 +134,21 @@ export async function addJourney(input: NewJourney): Promise<void> {
   console.log("[addJourney] success");
 }
 
+export async function updateJourney(id: string, input: UpdateJourney): Promise<void> {
+  const resp = await fetch(`${API_BASE}/api/players/me/journeys/${id}`, {
+    method: "PATCH",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      igdb_id: input.igdbId,
+      duration_seconds: input.durationSeconds,
+      played_at: input.playedAt.toISOString(),
+      log: input.log ?? null,
+    }),
+  });
+  if (!resp.ok) throw new Error(`update journey: ${resp.status}`);
+}
+
 export async function confirmPendingJourney(
   pendingId: string,
   input: { igdbId?: number; game: string; coverUrl?: string; genres: string[]; log?: string },
@@ -189,6 +204,7 @@ export async function getJourney(id: string): Promise<Journey | undefined> {
   const j: RawJourneyDetail = await resp.json();
   return {
     id: j.id,
+    igdbId: j.igdb_id,
     player: {
       id: j.player.id,
       handle: j.player.handle,

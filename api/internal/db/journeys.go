@@ -159,6 +159,23 @@ func InsertJourney(ctx context.Context, pool *pgxpool.Pool, j Journey) (string, 
 	return id, nil
 }
 
+// UpdateJourney updates mutable fields of a confirmed journey owned by userID.
+func UpdateJourney(ctx context.Context, pool *pgxpool.Pool, id, userID string, igdbID, durationSeconds int, endedAt time.Time, log *string) error {
+	startedAt := endedAt.Add(-time.Duration(durationSeconds) * time.Second)
+	tag, err := pool.Exec(ctx, `
+		UPDATE journeys
+		SET igdb_id = $3, duration_seconds = $4, started_at = $5, ended_at = $6, played_at = $5, log = $7
+		WHERE id = $1 AND user_id = $2
+	`, id, userID, igdbID, durationSeconds, startedAt, endedAt, log)
+	if err != nil {
+		return fmt.Errorf("update journey: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return fmt.Errorf("journey not found: %s", id)
+	}
+	return nil
+}
+
 // DeleteJourney removes a confirmed journey by ID and user ID.
 func DeleteJourney(ctx context.Context, pool *pgxpool.Pool, id, userID string) error {
 	tag, err := pool.Exec(ctx, `

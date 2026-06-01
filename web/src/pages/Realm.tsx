@@ -9,6 +9,8 @@ export default function Realm() {
   const { data: journeys = [], isLoading } = useQuery({
     queryKey: ["feed"],
     queryFn: getFeedJourneys,
+    refetchInterval: 30_000,
+    refetchIntervalInBackground: false,
   });
 
   if (isLoading) return null;

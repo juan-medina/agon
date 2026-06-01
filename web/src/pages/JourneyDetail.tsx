@@ -2,16 +2,23 @@
 // SPDX-License-Identifier: MIT
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
-import { Check, ChevronLeft, Clock, Heart, Trash2, UserPlus } from "lucide-react";
+import { CalendarDays, Check, ChevronLeft, Clock, Heart, Pencil, Trash2, UserPlus } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getJourney, getComments, getLikers, getJourneyPlayers, postComment, deleteJourney, deleteComment } from "@/services/journeys";
+import { getJourney, getComments, getLikers, getJourneyPlayers, postComment, deleteJourney, deleteComment, updateJourney } from "@/services/journeys";
 import { toggleLike } from "@/services/journeys";
 import { followPlayer, unfollowPlayer, getIsFollowing } from "@/services/players";
 import { getCurrentPlayer, MY_PLAYER_ID } from "@/services/auth";
 import { avatarSrc, playerHref } from "@/lib/display";
 import FollowListModal from "@/components/FollowListModal";
+import { GameSelector } from "@/components/GameSelector";
+import { parseDuration } from "@/lib/duration";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
+import { format } from "date-fns";
 import { formatCommentAge, formatJourneyDate } from "@/lib/time";
 import type { Comment, JourneyPlayer, Player } from "@/models";
+import type { Game } from "@/models/game";
 
 function PlayerAvatar({ player, size = "md" }: { player: Player; size?: "sm" | "md" | "lg" }) {
   const dims = size === "sm" ? "h-6 w-6" : size === "lg" ? "h-10 w-10" : "h-8 w-8";
@@ -135,6 +142,12 @@ export default function JourneyDetail() {
   const [commentText, setCommentText] = useState("");
   const [showLikers, setShowLikers] = useState(false);
   const [confirmDeleteJourney, setConfirmDeleteJourney] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editGame, setEditGame] = useState<Game | null>(null);
+  const [editDuration, setEditDuration] = useState("");
+  const [editPickedDate, setEditPickedDate] = useState<Date | undefined>(undefined);
+  const [editCalendarOpen, setEditCalendarOpen] = useState(false);
+  const [editLog, setEditLog] = useState("");
 
   const { data: currentPlayer } = useQuery({ queryKey: ["auth", "me"], queryFn: getCurrentPlayer });
 
@@ -142,12 +155,16 @@ export default function JourneyDetail() {
     queryKey: ["journey", id],
     queryFn: () => getJourney(id!),
     enabled: !!id,
+    refetchInterval: 30_000,
+    refetchIntervalInBackground: false,
   });
 
   const { data: comments = [] } = useQuery({
     queryKey: ["journey", id, "comments"],
     queryFn: () => getComments(id!),
     enabled: !!id,
+    refetchInterval: 30_000,
+    refetchIntervalInBackground: false,
   });
 
   const { data: likers = [] } = useQuery({
@@ -192,6 +209,28 @@ export default function JourneyDetail() {
     mutationFn: () => deleteJourney(id!),
     onSuccess: () => navigate("/journeys"),
   });
+
+  const updateJourneyMutation = useMutation({
+    mutationFn: (input: Parameters<typeof updateJourney>[1]) => updateJourney(id!, input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["journey", id] });
+      setIsEditing(false);
+    },
+  });
+
+  function startEditing() {
+    if (!journey) return;
+    setEditGame({
+      id: journey.igdbId.toString(),
+      game: journey.game,
+      coverUrl: journey.coverUrl,
+      genres: journey.genres,
+    });
+    setEditDuration(journey.duration);
+    setEditPickedDate(journey.playedAt);
+    setEditLog(journey.log ?? "");
+    setIsEditing(true);
+  }
 
   if (!journey) {
     return (
@@ -277,36 +316,133 @@ export default function JourneyDetail() {
 
       {/* Hero */}
       <div className="rounded-lg border border-border bg-card p-4">
-        <div className="flex gap-4">
-          <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-md bg-slate-800">
-            {journey.coverUrl
-              ? <img src={journey.coverUrl} alt={journey.game} className="absolute inset-0 h-full w-full object-cover" />
-              : <span className="absolute inset-0 flex items-center justify-center text-4xl font-bold text-slate-300">{journey.game[0]}</span>
-            }
-          </div>
-          <div className="min-w-0 flex-1">
-            <h1 className="mb-1.5 text-xl font-bold">{journey.game}</h1>
-            <div className="mb-2 flex flex-wrap gap-1">
-              {journey.genres.map((g) => (
-                <span
-                  key={g}
-                  className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground"
+        {isEditing ? (() => {
+          const editParsed = parseDuration(editDuration);
+          const durationInvalid = editDuration.trim() !== "" && editParsed === null;
+          const canSave = editGame !== null && editParsed !== null && editPickedDate !== undefined;
+          return (
+            <div>
+              <div className="mb-4">
+                <GameSelector value={editGame} onChange={setEditGame} />
+              </div>
+              <div className="mb-4 grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Duration</label>
+                  <input
+                    type="text"
+                    value={editDuration}
+                    onChange={(e) => setEditDuration(e.target.value)}
+                    placeholder="e.g. 2h 30m, 90m, 1:30"
+                    className={`w-full rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary ${durationInvalid ? "border-destructive" : "border-border"}`}
+                  />
+                  {durationInvalid && <p className="mt-1 text-xs text-destructive">Try 2h, 90m, or 1:30</p>}
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-xs font-medium text-muted-foreground">When</label>
+                  <Popover open={editCalendarOpen} onOpenChange={setEditCalendarOpen}>
+                    <PopoverTrigger asChild>
+                      <Button type="button" variant="outline" className="w-full justify-start gap-1.5">
+                        <CalendarDays size={14} />
+                        {editPickedDate ? format(editPickedDate, "MMM d, yyyy") : "Pick date"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto">
+                      <Calendar
+                        mode="single"
+                        selected={editPickedDate}
+                        onSelect={(date) => {
+                          setEditPickedDate(date);
+                          setEditCalendarOpen(false);
+                        }}
+                        disabled={{ after: new Date() }}
+                        defaultMonth={editPickedDate ?? new Date()}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
+              <div className="mb-4">
+                <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                  Log <span className="font-normal text-muted-foreground/60">(optional)</span>
+                </label>
+                <textarea
+                  value={editLog}
+                  onChange={(e) => setEditLog(e.target.value)}
+                  placeholder="How did it go?"
+                  rows={3}
+                  className="w-full resize-none rounded-md border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+              <div className="flex items-center justify-end gap-2">
+                <button
+                  onClick={() => setIsEditing(false)}
+                  className="rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                 >
-                  {g}
-                </span>
-              ))}
+                  Cancel
+                </button>
+                <button
+                  disabled={!canSave || updateJourneyMutation.isPending}
+                  onClick={() => {
+                    if (!editGame || !editParsed || !editPickedDate) return;
+                    const durationSeconds = (editParsed.hours * 3600) + (editParsed.minutes * 60);
+                    const playedAt = new Date(editPickedDate.getFullYear(), editPickedDate.getMonth(), editPickedDate.getDate(), 23, 59, 59);
+                    updateJourneyMutation.mutate({ igdbId: parseInt(editGame.id), durationSeconds, playedAt, log: editLog.trim() || undefined });
+                  }}
+                  className="rounded-md bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground transition-opacity disabled:opacity-40"
+                >
+                  Save
+                </button>
+              </div>
+              {updateJourneyMutation.isError && (
+                <p className="mt-2 text-xs text-destructive">Something went wrong — please try again.</p>
+              )}
             </div>
-            <div className="flex items-center gap-1 text-sm text-muted-foreground">
-              <Clock size={13} />
-              <span>{journey.duration}</span>
+          );
+        })() : (
+          <>
+            <div className="flex gap-4">
+              <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-md bg-slate-800">
+                {journey.coverUrl
+                  ? <img src={journey.coverUrl} alt={journey.game} className="absolute inset-0 h-full w-full object-cover" />
+                  : <span className="absolute inset-0 flex items-center justify-center text-4xl font-bold text-slate-300">{journey.game[0]}</span>
+                }
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-start justify-between">
+                  <h1 className="mb-1.5 text-xl font-bold">{journey.game}</h1>
+                  {isOwner && (
+                    <button
+                      onClick={startEditing}
+                      aria-label="Edit journey"
+                      className="shrink-0 rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                    >
+                      <Pencil size={14} />
+                    </button>
+                  )}
+                </div>
+                <div className="mb-2 flex flex-wrap gap-1">
+                  {journey.genres.map((g) => (
+                    <span
+                      key={g}
+                      className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground"
+                    >
+                      {g}
+                    </span>
+                  ))}
+                </div>
+                <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                  <Clock size={13} />
+                  <span>{journey.duration}</span>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
 
-        {journey.log && (
-          <blockquote className="mt-4 border-l-2 border-border pl-4 text-sm italic text-muted-foreground">
-            &ldquo;{journey.log}&rdquo;
-          </blockquote>
+            {journey.log && (
+              <blockquote className="mt-4 border-l-2 border-border pl-4 text-sm italic text-muted-foreground">
+                &ldquo;{journey.log}&rdquo;
+              </blockquote>
+            )}
+          </>
         )}
       </div>
 

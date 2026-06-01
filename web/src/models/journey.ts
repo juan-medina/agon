@@ -5,6 +5,7 @@ import type { Player } from "./player";
 
 export type Journey = {
   id: string;
+  igdbId: number;
   player: Player;
   game: string;
   coverUrl?: string;
@@ -14,6 +15,13 @@ export type Journey = {
   log?: string;
   likes: number;
   liked: boolean;
+};
+
+export type UpdateJourney = {
+  igdbId: number;
+  durationSeconds: number;
+  playedAt: Date;
+  log?: string;
 };
 
 export type PendingJourney = {
