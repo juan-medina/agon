@@ -1,0 +1,212 @@
+// SPDX-FileCopyrightText: 2026 Juan Medina
+// SPDX-License-Identifier: MIT
+import { useState, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
+import GenreChip from "@/components/GenreChip";
+import { avatarSrc, initials } from "@/lib/display";
+import { genreBarColor } from "@/lib/genres";
+import FollowListModal from "@/components/FollowListModal";
+import JourneyCard from "@/components/JourneyCard";
+import type { Journey, Player, PlayerProfile } from "@/models";
+
+function formatSeconds(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  if (h > 0 && m > 0) return `${h}h ${m}m`;
+  if (h > 0) return `${h}h`;
+  return `${m}m`;
+}
+
+interface ProfileViewProps {
+  profile: PlayerProfile;
+  journeys: Journey[];
+  followers: Player[];
+  following: Player[];
+  journeyQueryKey: unknown[];
+  sectionTitle: string;
+  /** Back button or other nav rendered above the profile card */
+  header?: ReactNode;
+  /** Follow/unfollow button rendered at the trailing edge of the profile card */
+  profileActions?: ReactNode;
+  /** Bio area: editable widget (Hero) or plain text (PlayerProfile) */
+  bioContent?: ReactNode;
+}
+
+export default function ProfileView({
+  profile,
+  journeys,
+  followers,
+  following,
+  journeyQueryKey,
+  sectionTitle,
+  header,
+  profileActions,
+  bioContent,
+}: ProfileViewProps) {
+  const { t } = useTranslation();
+  const [followList, setFollowList] = useState<{ title: string; players: Player[] } | null>(null);
+
+  const { player, journeyCount, totalSeconds, recentGames, genreHours } = profile;
+  const maxGenreSeconds = genreHours[0]?.seconds ?? 1;
+
+  return (
+    <div className="mx-auto max-w-2xl">
+      {header && <div className="mb-4 flex items-center gap-3">{header}</div>}
+
+      {/* Profile card */}
+      <div className="mb-4 rounded-lg border border-border bg-card p-5">
+        <div className="flex items-start gap-5">
+          {/* Avatar */}
+          <div className="h-16 w-16 shrink-0">
+            <img
+              src={avatarSrc(player)}
+              alt={player.name}
+              className="h-full w-full rounded-full object-cover"
+              onError={(e) => {
+                const target = e.currentTarget;
+                target.style.display = "none";
+                target.nextElementSibling?.removeAttribute("hidden");
+              }}
+            />
+            <div
+              hidden
+              className="flex h-full w-full items-center justify-center rounded-full text-xl font-bold text-white"
+              style={{ backgroundColor: player.color }}
+            >
+              {initials(player.name)}
+            </div>
+          </div>
+
+          {/* Name, handle, bio */}
+          <div className="min-w-0 flex-1">
+            <p className="mb-1 text-xl font-bold leading-tight">{player.name}</p>
+            <p className="mb-3 text-sm text-muted-foreground">@{player.handle}</p>
+            {bioContent}
+          </div>
+
+          {profileActions}
+        </div>
+      </div>
+
+      {/* Stats */}
+      <div className="mb-6 grid grid-cols-2 divide-x divide-y divide-border rounded-lg border border-border bg-card sm:grid-cols-4 sm:divide-y-0">
+        {[
+          { labelKey: "profile_stat_journeys", value: journeyCount, onClick: undefined },
+          { labelKey: "profile_stat_hours", value: formatSeconds(totalSeconds), onClick: undefined },
+          {
+            labelKey: "profile_stat_followers",
+            value: player.followers ?? followers.length,
+            onClick: () => setFollowList({ title: t("profile_followers_modal"), players: followers }),
+          },
+          {
+            labelKey: "profile_stat_following",
+            value: player.following ?? following.length,
+            onClick: () => setFollowList({ title: t("profile_following_modal"), players: following }),
+          },
+        ].map(({ labelKey, value, onClick }) =>
+          onClick ? (
+            <button
+              key={labelKey}
+              onClick={onClick}
+              className="flex flex-col items-center py-4 transition-colors hover:bg-accent/50"
+            >
+              <span className="text-lg font-bold">{value}</span>
+              <span className="text-xs text-muted-foreground">{t(labelKey)}</span>
+            </button>
+          ) : (
+            <div key={labelKey} className="flex flex-col items-center py-4">
+              <span className="text-lg font-bold">{value}</span>
+              <span className="text-xs text-muted-foreground">{t(labelKey)}</span>
+            </div>
+          ),
+        )}
+      </div>
+
+      {/* Recent games */}
+      {recentGames.length > 0 && (
+        <div className="mb-6">
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+            {t("profile_recent_games")}
+          </h2>
+          <div className="grid grid-cols-3 gap-3 sm:grid-cols-5">
+            {recentGames.map((g) => (
+              <div key={g.igdbId}>
+                {g.coverUrl ? (
+                  <img
+                    src={g.coverUrl}
+                    alt={g.name}
+                    className="mb-2 aspect-[3/4] w-full rounded-md object-cover"
+                  />
+                ) : (
+                  <div className="mb-2 flex aspect-[3/4] w-full items-center justify-center rounded-md bg-muted">
+                    <span className="px-1 text-center text-xs text-muted-foreground">{g.name}</span>
+                  </div>
+                )}
+                <p className="truncate text-xs font-medium" title={g.name}>
+                  {g.name}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Genre hours bars */}
+      {genreHours.length > 0 && (
+        <div className="mb-6">
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+            {t("profile_genres")}
+          </h2>
+          <div className="flex flex-col gap-2">
+            {genreHours.map((g) => (
+              <div key={g.genre} className="flex items-center gap-3">
+                <div className="w-32 shrink-0">
+                  <GenreChip genre={g.genre} size="sm" />
+                </div>
+                <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full rounded-full"
+                    style={{
+                      width: `${(g.seconds / maxGenreSeconds) * 100}%`,
+                      backgroundColor: genreBarColor(g.genre),
+                    }}
+                  />
+                </div>
+                <span className="w-12 shrink-0 text-right text-xs text-muted-foreground">
+                  {formatSeconds(g.seconds)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Journeys */}
+      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+        {sectionTitle}
+      </h2>
+
+      {journeys.length > 0 ? (
+        <div className="flex flex-col gap-3">
+          {journeys.map((journey) => (
+            <JourneyCard key={journey.id} journey={journey} queryKey={journeyQueryKey} />
+          ))}
+        </div>
+      ) : (
+        <div className="rounded-lg border border-border bg-card px-4 py-12 text-center text-sm text-muted-foreground">
+          {t("profile_no_journeys")}
+        </div>
+      )}
+
+      <div className="h-8" />
+
+      {followList && (
+        <FollowListModal
+          title={followList.title}
+          players={followList.players}
+          onClose={() => setFollowList(null)}
+        />
+      )}
+    </div>
+  );
+}

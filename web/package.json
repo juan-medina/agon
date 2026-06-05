@@ -1,0 +1,53 @@
+{
+  "name": "yurnik-web",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "pnpm run build && wrangler dev",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "tsc --noEmit",
+    "deploy": "pnpm run build && wrangler deploy"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  },
+  "dependencies": {
+    "@radix-ui/react-popover": "^1.1.15",
+    "@radix-ui/react-slot": "^1.2.4",
+    "@tanstack/react-query": "^5.100.13",
+    "class-variance-authority": "latest",
+    "clsx": "latest",
+    "date-fns": "^4.2.1",
+    "i18next": "^26.3.0",
+    "lucide-react": "latest",
+    "react": "^19.2.6",
+    "react-day-picker": "^10.0.1",
+    "react-dom": "^19.2.6",
+    "react-i18next": "^17.0.8",
+    "react-router": "latest",
+    "tailwind-merge": "latest"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.39.1",
+    "@tailwindcss/vite": "latest",
+    "@testing-library/jest-dom": "latest",
+    "@testing-library/react": "latest",
+    "@testing-library/user-event": "latest",
+    "@types/node": "^24.12.3",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.1",
+    "jsdom": "latest",
+    "tailwindcss": "latest",
+    "typescript": "~6.0.2",
+    "vite": "^8.0.12",
+    "vitest": "latest",
+    "wrangler": "^4.96.0"
+  }
+}

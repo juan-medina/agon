@@ -1,0 +1,73 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  test-unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: api/go.mod
+
+      - name: Unit tests
+        working-directory: api
+        run: go test ./... -count=1
+
+  test-integration:
+    needs: test-unit
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: yurnik
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: api/go.mod
+
+      - name: Init database schema
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h localhost -U postgres -f scripts/db-init.sql
+          psql -h localhost -U postgres -c "ALTER ROLE yurnik_admin WITH PASSWORD 'ci'; ALTER ROLE yurnik_api WITH PASSWORD 'ci';"
+
+      - name: Integration tests
+        working-directory: api
+        env:
+          TEST_DATABASE_URL: postgres://yurnik_api:ci@localhost:5432/yurnik
+          TEST_DATABASE_ADMIN_URL: postgres://yurnik_admin:ci@localhost:5432/yurnik
+        run: go test -tags integration ./... -v -count=1
+
+  deploy:
+    needs: [test-unit, test-integration]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.YURNI_SERVER_SSH_KEY }}" > ~/.ssh/deploy
+          chmod 600 ~/.ssh/deploy
+          ssh-keyscan -H ${{ vars.YURNI_SERVER_IP }} >> ~/.ssh/known_hosts
+
+      - name: Deploy
+        run: ssh -i ~/.ssh/deploy root@${{ vars.YURNI_SERVER_IP }} 'cd /opt/yurnik && git pull && make deploy-api'

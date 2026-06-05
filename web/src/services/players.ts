@@ -1,0 +1,169 @@
+// SPDX-FileCopyrightText: 2026 Juan Medina
+// SPDX-License-Identifier: MIT
+
+import type { Player, PlayerProfile } from "@/models/player";
+import type { Journey } from "@/models/journey";
+import { API_BASE, apiFetch } from "@/lib/api";
+import { formatDuration } from "@/lib/time";
+
+type RawPlayer = {
+  id: string;
+  handle: string;
+  name: string;
+  avatar_url?: string;
+  bio?: string;
+  color: string;
+  followers?: number;
+  following?: number;
+  is_following?: boolean;
+};
+
+type RawJourney = {
+  id: string;
+  igdb_id: number;
+  game: string;
+  cover_url?: string;
+  genres: string[];
+  played_at: string;
+  duration_seconds: number;
+  log?: string;
+  like_count?: number;
+  is_liked?: boolean;
+};
+
+function rawToPlayer(p: RawPlayer): Player {
+  return {
+    id: p.id,
+    handle: p.handle,
+    name: p.name,
+    avatarUrl: p.avatar_url,
+    bio: p.bio,
+    color: p.color,
+    followers: p.followers,
+    following: p.following,
+    isFollowing: p.is_following,
+  };
+}
+
+type RawProfileSummary = {
+  id: string;
+  handle: string;
+  name: string;
+  avatar_url?: string;
+  bio?: string;
+  color: string;
+  followers: number;
+  following: number;
+  is_following: boolean;
+  journey_count: number;
+  total_seconds: number;
+  recent_games: { igdb_id: number; name: string; cover_url?: string; last_played: string }[];
+  genre_hours: { genre: string; seconds: number }[];
+};
+
+function rawToPlayerProfile(r: RawProfileSummary): PlayerProfile {
+  return {
+    player: {
+      id: r.id,
+      handle: r.handle,
+      name: r.name,
+      avatarUrl: r.avatar_url,
+      bio: r.bio,
+      color: r.color,
+      followers: r.followers,
+      following: r.following,
+      isFollowing: r.is_following,
+    },
+    journeyCount: r.journey_count,
+    totalSeconds: r.total_seconds,
+    recentGames: (r.recent_games ?? []).map((g) => ({
+      igdbId: g.igdb_id,
+      name: g.name,
+      coverUrl: g.cover_url,
+      lastPlayed: new Date(g.last_played),
+    })),
+    genreHours: r.genre_hours ?? [],
+  };
+}
+
+export async function getPlayerProfile(id: string): Promise<PlayerProfile | undefined> {
+  const resp = await apiFetch(`${API_BASE}/api/players/${id}/profile`, { credentials: "include" });
+  if (resp.status === 404) return undefined;
+  if (!resp.ok) throw new Error(`get player profile: ${resp.status}`);
+  return rawToPlayerProfile(await resp.json());
+}
+
+export async function getMyProfile(): Promise<PlayerProfile | undefined> {
+  const resp = await apiFetch(`${API_BASE}/api/me/profile`, { credentials: "include" });
+  if (resp.status === 401 || resp.status === 404) return undefined;
+  if (!resp.ok) throw new Error(`get my profile: ${resp.status}`);
+  return rawToPlayerProfile(await resp.json());
+}
+
+export async function getPlayer(id: string): Promise<Player | undefined> {
+  const resp = await apiFetch(`${API_BASE}/api/players/${id}`, { credentials: "include" });
+  if (resp.status === 404) return undefined;
+  if (!resp.ok) throw new Error(`get player: ${resp.status}`);
+  const p: RawPlayer = await resp.json();
+  return rawToPlayer(p);
+}
+
+export async function getIsFollowing(playerId: string): Promise<boolean> {
+  const player = await getPlayer(playerId);
+  return player?.isFollowing ?? false;
+}
+
+export async function getPlayerJourneys(id: string): Promise<Journey[]> {
+  const [player, resp] = await Promise.all([
+    getPlayer(id),
+    fetch(`${API_BASE}/api/players/${id}/journeys`, { credentials: "include" }),
+  ]);
+  if (!player) return [];
+  if (!resp.ok) throw new Error(`get player journeys: ${resp.status}`);
+  const data: { journeys: RawJourney[] } = await resp.json();
+  return (data.journeys ?? []).map((j): Journey => ({
+    id: j.id,
+    igdbId: j.igdb_id,
+    player,
+    game: j.game,
+    coverUrl: j.cover_url,
+    genres: j.genres,
+    duration: formatDuration(j.duration_seconds ?? 0),
+    playedAt: new Date(j.played_at),
+    log: j.log,
+    likes: j.like_count ?? 0,
+    liked: j.is_liked ?? false,
+  }));
+}
+
+export async function getFollowers(playerId: string): Promise<Player[]> {
+  const resp = await apiFetch(`${API_BASE}/api/players/${playerId}/followers`);
+  if (!resp.ok) throw new Error(`get followers: ${resp.status}`);
+  const data: { players: RawPlayer[] } = await resp.json();
+  return (data.players ?? []).map(rawToPlayer);
+}
+
+export async function getFollowing(playerId: string): Promise<Player[]> {
+  const resp = await apiFetch(`${API_BASE}/api/players/${playerId}/following`);
+  if (!resp.ok) throw new Error(`get following: ${resp.status}`);
+  const data: { players: RawPlayer[] } = await resp.json();
+  return (data.players ?? []).map(rawToPlayer);
+}
+
+export async function followPlayer(playerId: string): Promise<void> {
+  const resp = await apiFetch(`${API_BASE}/api/players/${playerId}/follow`, {
+    method: "POST",
+    credentials: "include",
+  });
+  if (!resp.ok) throw new Error(`follow: ${resp.status}`);
+}
+
+export async function unfollowPlayer(playerId: string): Promise<void> {
+  const resp = await apiFetch(`${API_BASE}/api/players/${playerId}/follow`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+  if (!resp.ok) throw new Error(`unfollow: ${resp.status}`);
+}
+
+export function _reset(): void {}
