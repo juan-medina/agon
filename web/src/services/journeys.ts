@@ -14,6 +14,7 @@ type RawJourneyDetail = {
   game: string;
   cover_url?: string;
   genres: string[];
+  release_year?: number;
   duration_seconds: number;
   log?: string;
   played_at: string;
@@ -47,6 +48,7 @@ type RawJourney = {
   game: string;
   cover_url?: string;
   genres: string[];
+  release_year?: number;
   played_at: string;
   duration_seconds: number;
   log?: string;
@@ -69,6 +71,7 @@ export async function getUserJourneys(): Promise<Journey[]> {
     game: j.game,
     coverUrl: j.cover_url,
     genres: j.genres,
+    releaseYear: j.release_year,
     duration: formatDuration(j.duration_seconds ?? 0),
     playedAt: new Date(j.played_at),
     log: j.log,
@@ -216,6 +219,7 @@ export async function getJourney(id: string): Promise<Journey | undefined> {
     game: j.game,
     coverUrl: j.cover_url,
     genres: j.genres,
+    releaseYear: j.release_year,
     duration: formatDuration(j.duration_seconds),
     playedAt: new Date(j.played_at),
     log: j.log,

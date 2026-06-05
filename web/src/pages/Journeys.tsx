@@ -343,7 +343,12 @@ function PendingCard({ journey }: { journey: PendingJourney }) {
         <div className="min-w-0 flex-1">
           <div className="mb-1 flex flex-wrap items-baseline gap-x-2 gap-y-1">
             {journey.game ? (
-              <span className="font-bold">{journey.game}</span>
+              <span className="font-bold">
+                {journey.game}
+                {journey.releaseYear && (
+                  <span className="ml-1.5 text-xs font-normal text-muted-foreground">({journey.releaseYear})</span>
+                )}
+              </span>
             ) : (
               <span className="italic text-muted-foreground">{t("journeys_unknown_game")}</span>
             )}

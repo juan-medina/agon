@@ -185,6 +185,9 @@
   "game_search_placeholder": "Search for a game…",
   "game_no_results": "No games found for “{{query}}”",
   "game_change": "Change",
+  "prev": "Prev",
+  "next": "Next",
+  "page": "Page",
 
   "modal_close": "Close",
   "modal_no_players": "No one here yet.",

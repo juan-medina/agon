@@ -18,10 +18,12 @@ import (
 
 // Game is a game record returned by IGDB search.
 type Game struct {
-	IGDBID   int
-	Name     string
-	CoverURL string
-	Genres   []string
+	IGDBID      int
+	Name        string
+	CoverURL    string
+	Genres      []string
+	ReleaseYear *int
+	Category    *int
 }
 
 // Client calls the IGDB API using Twitch client credentials.
@@ -85,20 +87,84 @@ func (c *Client) getToken(ctx context.Context) (string, error) {
 }
 
 type igdbGame struct {
-	ID    int    `json:"id"`
-	Name  string `json:"name"`
-	Cover *struct {
+	ID                int    `json:"id"`
+	Name              string `json:"name"`
+	Cover             *struct {
 		ImageID string `json:"image_id"`
 	} `json:"cover"`
 	Genres []struct {
 		Name string `json:"name"`
 	} `json:"genres"`
+	FirstReleaseDate *int64 `json:"first_release_date"`
+	Category         *int   `json:"game_type"`
+}
+
+// FetchByIDs fetches game metadata for a list of IGDB IDs. Used to backfill
+// release_year and category for cached games that predate those columns.
+// Batches up to 500 IDs per request (IGDB max). Rate-limited like Search.
+func (c *Client) FetchByIDs(ctx context.Context, ids []int) ([]Game, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	if err := c.limiter.Wait(ctx); err != nil {
+		return nil, fmt.Errorf("igdb rate limit: %w", err)
+	}
+	tok, err := c.getToken(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var sb strings.Builder
+	for i, id := range ids {
+		if i > 0 {
+			sb.WriteByte(',')
+		}
+		fmt.Fprintf(&sb, "%d", id)
+	}
+	body := fmt.Sprintf("fields name,first_release_date,game_type; where id = (%s); limit 500;", sb.String())
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "https://api.igdb.com/v4/games", strings.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("build igdb request: %w", err)
+	}
+	req.Header.Set("Client-ID", c.clientID)
+	req.Header.Set("Authorization", "Bearer "+tok)
+	req.Header.Set("Content-Type", "text/plain")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("igdb fetch: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		b, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("igdb fetch %d: %s", resp.StatusCode, b)
+	}
+
+	var raw []igdbGame
+	if err := json.NewDecoder(resp.Body).Decode(&raw); err != nil {
+		return nil, fmt.Errorf("decode igdb response: %w", err)
+	}
+
+	games := make([]Game, 0, len(raw))
+	for _, g := range raw {
+		game := Game{IGDBID: g.ID, Name: g.Name, Category: g.Category}
+		if g.FirstReleaseDate != nil {
+			y := time.Unix(*g.FirstReleaseDate, 0).UTC().Year()
+			game.ReleaseYear = &y
+		}
+		games = append(games, game)
+	}
+	return games, nil
 }
 
 // Search queries IGDB for games matching query. It blocks until the rate
 // limiter allows the call. Results are not cached here — the caller is
 // responsible for persisting them.
-func (c *Client) Search(ctx context.Context, query string) ([]Game, error) {
+//
+// IGDB's search endpoint silently drops the category field even when requested,
+// so Search makes a second FetchByIDs call to retrieve category separately.
+func (c *Client) Search(ctx context.Context, query string, offset int) ([]Game, error) {
 	if err := c.limiter.Wait(ctx); err != nil {
 		return nil, fmt.Errorf("igdb rate limit: %w", err)
 	}
@@ -109,7 +175,7 @@ func (c *Client) Search(ctx context.Context, query string) ([]Game, error) {
 	}
 
 	escaped := strings.ReplaceAll(query, `"`, `\"`)
-	body := fmt.Sprintf(`search "%s"; fields name,cover.image_id,genres.name; limit 10;`, escaped)
+	body := fmt.Sprintf(`search "%s"; fields name,cover.image_id,genres.name,first_release_date,game_type; limit 10; offset %d;`, escaped, offset)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "https://api.igdb.com/v4/games", strings.NewReader(body))
 	if err != nil {
@@ -136,7 +202,7 @@ func (c *Client) Search(ctx context.Context, query string) ([]Game, error) {
 
 	games := make([]Game, 0, len(raw))
 	for _, g := range raw {
-		game := Game{IGDBID: g.ID, Name: g.Name}
+		game := Game{IGDBID: g.ID, Name: g.Name, Category: g.Category}
 		if g.Cover != nil {
 			game.CoverURL = "https://images.igdb.com/igdb/image/upload/t_cover_big/" + g.Cover.ImageID + ".jpg"
 		}
@@ -148,7 +214,12 @@ func (c *Client) Search(ctx context.Context, query string) ([]Game, error) {
 		if game.Genres == nil {
 			game.Genres = []string{}
 		}
+		if g.FirstReleaseDate != nil {
+			y := time.Unix(*g.FirstReleaseDate, 0).UTC().Year()
+			game.ReleaseYear = &y
+		}
 		games = append(games, game)
 	}
+
 	return games, nil
 }

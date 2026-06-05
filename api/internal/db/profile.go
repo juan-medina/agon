@@ -10,10 +10,11 @@ import (
 )
 
 type ProfileRecentGame struct {
-	IGDBID     int
-	Name       string
-	CoverURL   *string
-	LastPlayed time.Time
+	IGDBID      int
+	Name        string
+	CoverURL    *string
+	ReleaseYear *int
+	LastPlayed  time.Time
 }
 
 type ProfileGenreHours struct {
@@ -42,9 +43,9 @@ func GetProfileSummary(ctx context.Context, pool *pgxpool.Pool, userID string) (
 	}
 
 	gameRows, err := pool.Query(ctx, `
-		SELECT igdb_id, game_name, cover_url, last_played FROM (
+		SELECT igdb_id, game_name, cover_url, release_year, last_played FROM (
 			SELECT DISTINCT ON (j.igdb_id)
-				j.igdb_id, g.name AS game_name, g.cover_url, j.played_at AS last_played
+				j.igdb_id, g.name AS game_name, g.cover_url, g.release_year, j.played_at AS last_played
 			FROM journeys j
 			JOIN igdb_games g ON g.igdb_id = j.igdb_id
 			WHERE j.user_id = $1
@@ -59,7 +60,7 @@ func GetProfileSummary(ctx context.Context, pool *pgxpool.Pool, userID string) (
 	defer gameRows.Close()
 	for gameRows.Next() {
 		var g ProfileRecentGame
-		if err := gameRows.Scan(&g.IGDBID, &g.Name, &g.CoverURL, &g.LastPlayed); err != nil {
+		if err := gameRows.Scan(&g.IGDBID, &g.Name, &g.CoverURL, &g.ReleaseYear, &g.LastPlayed); err != nil {
 			return s, err
 		}
 		s.RecentGames = append(s.RecentGames, g)

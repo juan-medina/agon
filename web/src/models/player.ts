@@ -20,6 +20,7 @@ export type RecentGame = {
   igdbId: number;
   name: string;
   coverUrl?: string;
+  releaseYear?: number;
   lastPlayed: Date;
 };
 

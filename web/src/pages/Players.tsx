@@ -66,7 +66,12 @@ function GameCard({ activity }: { activity: GameActivity }) {
       <div className="flex items-center gap-3 p-4">
         <GameCover game={activity.game} coverUrl={activity.coverUrl} />
         <div className="min-w-0 flex-1">
-          <p className="font-semibold">{activity.game}</p>
+          <p className="font-semibold">
+            {activity.game}
+            {activity.releaseYear && (
+              <span className="ml-1.5 text-xs font-normal text-muted-foreground">({activity.releaseYear})</span>
+            )}
+          </p>
           <div className="mt-1 flex flex-wrap gap-1">
             {activity.genres.map((g) => (
               <GenreChip key={g} genre={g} />

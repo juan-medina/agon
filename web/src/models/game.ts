@@ -8,6 +8,8 @@ export type Game = {
   game: string;
   coverUrl?: string;
   genres: string[];
+  releaseYear?: number;
+  category?: number;
 };
 
 export type JourneyEntry = {
@@ -23,6 +25,7 @@ export type GameActivity = {
   game: string;
   coverUrl?: string;
   genres: string[];
+  releaseYear?: number;
   entries: JourneyEntry[];
 };
 

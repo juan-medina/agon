@@ -5,18 +5,20 @@ import type { Game, GameActivity } from "@/models/game";
 import { API_BASE, apiFetch } from "@/lib/api";
 import { formatDuration } from "@/lib/time";
 
-export async function searchGames(query: string): Promise<Game[]> {
+export async function searchGames(query: string, offset = 0): Promise<Game[]> {
   if (query.length < 2) return [];
-  const resp = await apiFetch(`${API_BASE}/api/games/search?q=${encodeURIComponent(query)}`, {
+  const resp = await apiFetch(`${API_BASE}/api/games/search?q=${encodeURIComponent(query)}&offset=${offset}`, {
     credentials: "include",
   });
   if (!resp.ok) throw new Error(`game search failed: ${resp.status}`);
-  const raw: { id: string; name: string; cover_url?: string; genres: string[] }[] = await resp.json();
+  const raw: { id: string; name: string; cover_url?: string; genres: string[]; release_year?: number; category?: number }[] = await resp.json();
   return raw.map((g) => ({
     id: g.id,
     game: g.name,
     coverUrl: g.cover_url,
     genres: g.genres ?? [],
+    releaseYear: g.release_year,
+    category: g.category,
   }));
 }
 
@@ -29,6 +31,7 @@ export async function getGameActivity(): Promise<GameActivity[]> {
       game: string;
       cover_url?: string;
       genres: string[];
+      release_year?: number;
       entries: {
         session_id: string;
         player: { id: string; handle: string; name: string; avatar_url?: string; color: string };
@@ -43,6 +46,7 @@ export async function getGameActivity(): Promise<GameActivity[]> {
     game: g.game,
     coverUrl: g.cover_url,
     genres: g.genres,
+    releaseYear: g.release_year,
     entries: g.entries.map((e) => ({
       sessionId: e.session_id,
       player: {

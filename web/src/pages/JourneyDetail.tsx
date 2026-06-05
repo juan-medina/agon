@@ -425,7 +425,12 @@ export default function JourneyDetail() {
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-start justify-between">
-                  <h1 className="mb-1.5 text-xl font-bold">{journey.game}</h1>
+                  <h1 className="mb-1.5 text-xl font-bold">
+                  {journey.game}
+                  {journey.releaseYear && (
+                    <span className="ml-2 text-sm font-normal text-muted-foreground">({journey.releaseYear})</span>
+                  )}
+                </h1>
                   {isOwner && (
                     <button
                       onClick={startEditing}

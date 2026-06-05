@@ -24,6 +24,7 @@ type RawJourney = {
   game: string;
   cover_url?: string;
   genres: string[];
+  release_year?: number;
   played_at: string;
   duration_seconds: number;
   log?: string;
@@ -57,7 +58,7 @@ type RawProfileSummary = {
   is_following: boolean;
   journey_count: number;
   total_seconds: number;
-  recent_games: { igdb_id: number; name: string; cover_url?: string; last_played: string }[];
+  recent_games: { igdb_id: number; name: string; cover_url?: string; release_year?: number; last_played: string }[];
   genre_hours: { genre: string; seconds: number }[];
 };
 
@@ -80,6 +81,7 @@ function rawToPlayerProfile(r: RawProfileSummary): PlayerProfile {
       igdbId: g.igdb_id,
       name: g.name,
       coverUrl: g.cover_url,
+      releaseYear: g.release_year,
       lastPlayed: new Date(g.last_played),
     })),
     genreHours: r.genre_hours ?? [],
@@ -128,6 +130,7 @@ export async function getPlayerJourneys(id: string): Promise<Journey[]> {
     game: j.game,
     coverUrl: j.cover_url,
     genres: j.genres,
+    releaseYear: j.release_year,
     duration: formatDuration(j.duration_seconds ?? 0),
     playedAt: new Date(j.played_at),
     log: j.log,

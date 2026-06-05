@@ -151,6 +151,9 @@ export default function ProfileView({
                 <p className="truncate text-xs font-medium" title={g.name}>
                   {g.name}
                 </p>
+                {g.releaseYear && (
+                  <p className="text-xs text-muted-foreground">{g.releaseYear}</p>
+                )}
               </div>
             ))}
           </div>

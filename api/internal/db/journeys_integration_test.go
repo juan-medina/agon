@@ -34,11 +34,13 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 CREATE TABLE IF NOT EXISTS igdb_games (
-    igdb_id   integer     PRIMARY KEY,
-    name      text        NOT NULL,
-    cover_url text,
-    genres    text[]      NOT NULL DEFAULT '{}',
-    cached_at timestamptz NOT NULL DEFAULT now()
+    igdb_id      integer     PRIMARY KEY,
+    name         text        NOT NULL,
+    cover_url    text,
+    genres       text[]      NOT NULL DEFAULT '{}',
+    release_year integer,
+    category     integer,
+    cached_at    timestamptz NOT NULL DEFAULT now()
 );
 
 CREATE TABLE IF NOT EXISTS pending_journeys (

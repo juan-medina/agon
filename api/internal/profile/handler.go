@@ -258,6 +258,7 @@ func (h *Handler) getFeed(w http.ResponseWriter, r *http.Request) {
 		GameTitle       string     `json:"game"`
 		CoverURL        *string    `json:"cover_url,omitempty"`
 		Genres          []string   `json:"genres"`
+		ReleaseYear     *int       `json:"release_year,omitempty"`
 		DurationSeconds int        `json:"duration_seconds"`
 		Log             *string    `json:"log,omitempty"`
 		PlayedAt        string     `json:"played_at"`
@@ -274,6 +275,7 @@ func (h *Handler) getFeed(w http.ResponseWriter, r *http.Request) {
 			GameTitle:       j.GameName,
 			CoverURL:        j.CoverURL,
 			Genres:          j.Genres,
+			ReleaseYear:     j.ReleaseYear,
 			DurationSeconds: j.DurationSeconds,
 			Log:             j.Log,
 			PlayedAt:        j.PlayedAt.UTC().Format(time.RFC3339),
@@ -299,10 +301,11 @@ func (h *Handler) getFeed(w http.ResponseWriter, r *http.Request) {
 }
 
 type recentGameItem struct {
-	IGDBID     int     `json:"igdb_id"`
-	Name       string  `json:"name"`
-	CoverURL   *string `json:"cover_url,omitempty"`
-	LastPlayed string  `json:"last_played"`
+	IGDBID      int     `json:"igdb_id"`
+	Name        string  `json:"name"`
+	CoverURL    *string `json:"cover_url,omitempty"`
+	ReleaseYear *int    `json:"release_year,omitempty"`
+	LastPlayed  string  `json:"last_played"`
 }
 
 type genreHoursItem struct {
@@ -344,10 +347,11 @@ func buildProfileSummaryResponse(user db.User, followers, following int, isFollo
 	}
 	for _, g := range summary.RecentGames {
 		resp.RecentGames = append(resp.RecentGames, recentGameItem{
-			IGDBID:     g.IGDBID,
-			Name:       g.Name,
-			CoverURL:   g.CoverURL,
-			LastPlayed: g.LastPlayed.UTC().Format(time.RFC3339),
+			IGDBID:      g.IGDBID,
+			Name:        g.Name,
+			CoverURL:    g.CoverURL,
+			ReleaseYear: g.ReleaseYear,
+			LastPlayed:  g.LastPlayed.UTC().Format(time.RFC3339),
 		})
 	}
 	for _, gh := range summary.GenreHours {

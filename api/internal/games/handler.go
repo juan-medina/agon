@@ -3,6 +3,7 @@
 package games
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -23,16 +24,53 @@ func NewHandler(client *Client, pool *pgxpool.Pool) *Handler {
 	return &Handler{client: client, pool: pool}
 }
 
+// BackfillGameMeta fetches release_year and category from IGDB for any cached
+// games that are missing that data. Intended to run once at startup; safe to
+// call on every deploy — it exits immediately when there is nothing to do.
+func BackfillGameMeta(ctx context.Context, client *Client, pool *pgxpool.Pool) {
+	ids, err := db.StaleGameIDs(ctx, pool)
+	if err != nil {
+		log.Printf("backfill: list stale games: %v", err)
+		return
+	}
+	if len(ids) == 0 {
+		return
+	}
+	log.Printf("backfill: fetching meta for %d game(s)", len(ids))
+
+	// IGDB limit is 500 per request; batch if needed.
+	const batchSize = 500
+	for i := 0; i < len(ids); i += batchSize {
+		end := i + batchSize
+		if end > len(ids) {
+			end = len(ids)
+		}
+		fetched, err := client.FetchByIDs(ctx, ids[i:end])
+		if err != nil {
+			log.Printf("backfill: fetch batch: %v", err)
+			return
+		}
+		for _, g := range fetched {
+			if err := db.UpdateGameMeta(ctx, pool, g.IGDBID, g.ReleaseYear, g.Category); err != nil {
+				log.Printf("backfill: update %d: %v", g.IGDBID, err)
+			}
+		}
+	}
+	log.Printf("backfill: done")
+}
+
 func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/games/search", h.search)
 	mux.HandleFunc("GET /api/activity", h.activity)
 }
 
 type gameResponse struct {
-	ID       string   `json:"id"`
-	Name     string   `json:"name"`
-	CoverURL *string  `json:"cover_url,omitempty"`
-	Genres   []string `json:"genres"`
+	ID          string   `json:"id"`
+	Name        string   `json:"name"`
+	CoverURL    *string  `json:"cover_url,omitempty"`
+	Genres      []string `json:"genres"`
+	ReleaseYear *int     `json:"release_year,omitempty"`
+	Category    *int     `json:"category,omitempty"`
 }
 
 func (h *Handler) search(w http.ResponseWriter, r *http.Request) {
@@ -42,7 +80,14 @@ func (h *Handler) search(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	games, err := h.client.Search(r.Context(), q)
+	offset := 0
+	if s := r.URL.Query().Get("offset"); s != "" {
+		if n, err := strconv.Atoi(s); err == nil && n >= 0 {
+			offset = n
+		}
+	}
+
+	games, err := h.client.Search(r.Context(), q, offset)
 	if err != nil {
 		log.Printf("games/search: %v", err)
 		http.Error(w, "search failed", http.StatusBadGateway)
@@ -51,10 +96,12 @@ func (h *Handler) search(w http.ResponseWriter, r *http.Request) {
 
 	for _, g := range games {
 		if err := db.UpsertGame(r.Context(), h.pool, db.CachedGame{
-			IGDBID:   g.IGDBID,
-			Name:     g.Name,
-			CoverURL: g.CoverURL,
-			Genres:   g.Genres,
+			IGDBID:      g.IGDBID,
+			Name:        g.Name,
+			CoverURL:    g.CoverURL,
+			Genres:      g.Genres,
+			ReleaseYear: g.ReleaseYear,
+			Category:    g.Category,
 		}); err != nil {
 			log.Printf("games/search: cache %d: %v", g.IGDBID, err)
 		}
@@ -63,9 +110,11 @@ func (h *Handler) search(w http.ResponseWriter, r *http.Request) {
 	resp := make([]gameResponse, len(games))
 	for i, g := range games {
 		resp[i] = gameResponse{
-			ID:     strconv.Itoa(g.IGDBID),
-			Name:   g.Name,
-			Genres: g.Genres,
+			ID:          strconv.Itoa(g.IGDBID),
+			Name:        g.Name,
+			Genres:      g.Genres,
+			ReleaseYear: g.ReleaseYear,
+			Category:    g.Category,
 		}
 		if g.CoverURL != "" {
 			u := g.CoverURL
@@ -100,11 +149,12 @@ func (h *Handler) activity(w http.ResponseWriter, r *http.Request) {
 		Log             *string    `json:"log,omitempty"`
 	}
 	type gameResp struct {
-		ID       string      `json:"id"`
-		Game     string      `json:"game"`
-		CoverURL *string     `json:"cover_url,omitempty"`
-		Genres   []string    `json:"genres"`
-		Entries  []entryResp `json:"entries"`
+		ID          string      `json:"id"`
+		Game        string      `json:"game"`
+		CoverURL    *string     `json:"cover_url,omitempty"`
+		Genres      []string    `json:"genres"`
+		ReleaseYear *int        `json:"release_year,omitempty"`
+		Entries     []entryResp `json:"entries"`
 	}
 
 	// Group flat rows into per-game buckets preserving order.
@@ -118,11 +168,12 @@ func (h *Handler) activity(w http.ResponseWriter, r *http.Request) {
 				genres = []string{}
 			}
 			games = append(games, gameResp{
-				ID:       strconv.Itoa(e.IGDBID),
-				Game:     e.GameName,
-				CoverURL: e.CoverURL,
-				Genres:   genres,
-				Entries:  []entryResp{},
+				ID:          strconv.Itoa(e.IGDBID),
+				Game:        e.GameName,
+				CoverURL:    e.CoverURL,
+				Genres:      genres,
+				ReleaseYear: e.ReleaseYear,
+				Entries:     []entryResp{},
 			})
 		}
 		i := index[e.IGDBID]

@@ -83,11 +83,13 @@ CREATE TABLE users (
 -- IGDB response cache. Keyed by IGDB game ID. Refreshed when cached_at is older
 -- than the TTL checked at query time — a cache hit never triggers an IGDB call.
 CREATE TABLE igdb_games (
-    igdb_id   integer     PRIMARY KEY,
-    name      text        NOT NULL,
-    cover_url text,
-    genres    text[]      NOT NULL DEFAULT '{}',
-    cached_at timestamptz NOT NULL DEFAULT now()
+    igdb_id      integer     PRIMARY KEY,
+    name         text        NOT NULL,
+    cover_url    text,
+    genres       text[]      NOT NULL DEFAULT '{}',
+    release_year integer,
+    category     integer,
+    cached_at    timestamptz NOT NULL DEFAULT now()
 );
 
 -- Executables the agent must never create a pending journey for, per user.

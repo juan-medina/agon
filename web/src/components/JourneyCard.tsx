@@ -64,6 +64,9 @@ export default function JourneyCard({ journey, queryKey, showPlayer = false }: J
 
         <div className="mb-1 flex flex-wrap items-baseline gap-x-2 gap-y-1">
           <span className="font-bold">{journey.game}</span>
+          {journey.releaseYear && (
+            <span className="text-xs text-muted-foreground">({journey.releaseYear})</span>
+          )}
           <div className="flex flex-wrap gap-1">
             {journey.genres.map((g) => (
               <GenreChip key={g} genre={g} />

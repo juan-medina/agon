@@ -98,6 +98,7 @@ func (h *Handler) get(w http.ResponseWriter, r *http.Request) {
 		GameTitle       string     `json:"game"`
 		CoverURL        *string    `json:"cover_url,omitempty"`
 		Genres          []string   `json:"genres"`
+		ReleaseYear     *int       `json:"release_year,omitempty"`
 		DurationSeconds int        `json:"duration_seconds"`
 		Log             *string    `json:"log,omitempty"`
 		PlayedAt        string     `json:"played_at"`
@@ -113,6 +114,7 @@ func (h *Handler) get(w http.ResponseWriter, r *http.Request) {
 		GameTitle:       j.GameName,
 		CoverURL:        j.CoverURL,
 		Genres:          j.Genres,
+		ReleaseYear:     j.ReleaseYear,
 		DurationSeconds: j.DurationSeconds,
 		Log:             j.Log,
 		PlayedAt:        j.PlayedAt.UTC().Format(time.RFC3339),
@@ -358,6 +360,7 @@ type journeyResponse struct {
 	GameTitle       string   `json:"game"`
 	CoverURL        *string  `json:"cover_url,omitempty"`
 	Genres          []string `json:"genres"`
+	ReleaseYear     *int     `json:"release_year,omitempty"`
 	StartedAt       string   `json:"started_at"`
 	EndedAt         string   `json:"ended_at"`
 	DurationSeconds int      `json:"duration_seconds"`
@@ -661,6 +664,7 @@ func (h *Handler) listMine(w http.ResponseWriter, r *http.Request) {
 			GameTitle:       j.GameName,
 			CoverURL:        j.CoverURL,
 			Genres:          j.Genres,
+			ReleaseYear:     j.ReleaseYear,
 			StartedAt:       j.StartedAt.UTC().Format(time.RFC3339),
 			EndedAt:         j.EndedAt.UTC().Format(time.RFC3339),
 			DurationSeconds: j.DurationSeconds,
@@ -714,6 +718,7 @@ func (h *Handler) listByPlayer(w http.ResponseWriter, r *http.Request) {
 			GameTitle:       j.GameName,
 			CoverURL:        j.CoverURL,
 			Genres:          j.Genres,
+			ReleaseYear:     j.ReleaseYear,
 			StartedAt:       j.StartedAt.UTC().Format(time.RFC3339),
 			EndedAt:         j.EndedAt.UTC().Format(time.RFC3339),
 			DurationSeconds: j.DurationSeconds,

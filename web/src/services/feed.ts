@@ -11,6 +11,7 @@ type RawFeedEntry = {
   game: string;
   cover_url?: string;
   genres: string[];
+  release_year?: number;
   duration_seconds: number;
   log?: string;
   played_at: string;
@@ -42,6 +43,7 @@ export async function getFeedJourneys(): Promise<Journey[]> {
     game: j.game,
     coverUrl: j.cover_url,
     genres: j.genres,
+    releaseYear: j.release_year,
     duration: formatDuration(j.duration_seconds),
     playedAt: new Date(j.played_at),
     log: j.log,
