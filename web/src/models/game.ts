@@ -54,6 +54,7 @@ export type Comment = {
 };
 
 export type JourneyPlayer = {
+  journeyId: string;
   player: Player;
   duration: string;
   playedAt: Date;

@@ -189,26 +189,26 @@ export const MOCK_COMMENTS: Comment[] = [
 ];
 
 export const MOCK_FRIENDS_ON_JOURNEY: JourneyPlayer[] = [
-  { player: PLAYERS[1], duration: "2h 44m", playedAt: daysAgo(2), isFollowing: true, isSelf: false },
-  { player: PLAYERS[2], duration: "1h 30m", playedAt: daysAgo(5), isFollowing: true, isSelf: false },
-  { player: PLAYERS[3], duration: "4h 10m", playedAt: daysAgo(7), isFollowing: true, isSelf: false },
+  { journeyId: "j_p2", player: PLAYERS[1], duration: "2h 44m", playedAt: daysAgo(2), isFollowing: true, isSelf: false },
+  { journeyId: "j_p3", player: PLAYERS[2], duration: "1h 30m", playedAt: daysAgo(5), isFollowing: true, isSelf: false },
+  { journeyId: "j_p4", player: PLAYERS[3], duration: "4h 10m", playedAt: daysAgo(7), isFollowing: true, isSelf: false },
 ];
 
 export const MOCK_OTHERS_ON_JOURNEY: JourneyPlayer[] = [
   {
-    player: { id: "o1", name: "Jordan Park", handle: "jordanp.bsky.social", color: "#0284c7" },
+    journeyId: "j_o1", player: { id: "o1", name: "Jordan Park", handle: "jordanp.bsky.social", color: "#0284c7" },
     duration: "3h 02m", playedAt: daysAgo(1), isFollowing: false, isSelf: false,
   },
   {
-    player: { id: "o2", name: "Priya Nair", handle: "priyanair.bsky.social", color: "#7c3aed" },
+    journeyId: "j_o2", player: { id: "o2", name: "Priya Nair", handle: "priyanair.bsky.social", color: "#7c3aed" },
     duration: "55m", playedAt: daysAgo(3), isFollowing: false, isSelf: false,
   },
   {
-    player: { id: "o3", name: "Luca Rossi", handle: "lucarossi.bsky.social", color: "#059669" },
+    journeyId: "j_o3", player: { id: "o3", name: "Luca Rossi", handle: "lucarossi.bsky.social", color: "#059669" },
     duration: "6h 18m", playedAt: daysAgo(4), isFollowing: false, isSelf: false,
   },
   {
-    player: { id: "o4", name: "Fen Wu", handle: "fenwu.bsky.social", color: "#db2777" },
+    journeyId: "j_o4", player: { id: "o4", name: "Fen Wu", handle: "fenwu.bsky.social", color: "#db2777" },
     duration: "2h 11m", playedAt: daysAgo(7), isFollowing: false, isSelf: false,
   },
 ];

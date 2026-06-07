@@ -286,6 +286,7 @@ export async function getJourneyPlayers(journeyId: string): Promise<{
     playedAt: new Date(p.played_at),
     isFollowing: p.player.is_following,
     isSelf: false,
+    journeyId: p.journey_id,
   }));
 
   const following = all.filter((p) => p.isFollowing);

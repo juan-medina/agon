@@ -136,6 +136,7 @@ function igdbSlug(name: string): string {
 
 function JourneyPlayerRow({ entry }: { entry: JourneyPlayer }) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [following, setFollowing] = useState(entry.isFollowing);
   const followMutation = useMutation({
     mutationFn: (follow: boolean) => follow ? followPlayer(entry.player.id) : unfollowPlayer(entry.player.id),
@@ -143,8 +144,15 @@ function JourneyPlayerRow({ entry }: { entry: JourneyPlayer }) {
   });
 
   return (
-    <div className="flex items-center gap-3 py-2">
-      <Link to={playerHref(entry.player, MY_PLAYER_ID)} className="flex items-center gap-3 min-w-0 flex-1">
+    <div
+      className="flex cursor-pointer items-center gap-3 py-2 transition-colors hover:bg-accent/5 -mx-4 px-4"
+      onClick={() => navigate(`/journey/${entry.journeyId}`)}
+    >
+      <Link
+        to={playerHref(entry.player, MY_PLAYER_ID)}
+        onClick={(e) => e.stopPropagation()}
+        className="flex items-center gap-3 min-w-0 flex-1"
+      >
         <img
           src={avatarSrc(entry.player)}
           alt={entry.player.name}
@@ -164,7 +172,7 @@ function JourneyPlayerRow({ entry }: { entry: JourneyPlayer }) {
         <span className="shrink-0 text-xs text-muted-foreground">{t("journey_you")}</span>
       ) : (
         <button
-          onClick={() => followMutation.mutate(!following)}
+          onClick={(e) => { e.stopPropagation(); followMutation.mutate(!following); }}
           className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
             following
               ? "border-border bg-muted text-muted-foreground"

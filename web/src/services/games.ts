@@ -62,6 +62,7 @@ export async function getGameJourneys(igdbId: string): Promise<{
   const others: JourneyPlayer[] = [];
   for (const p of data.players ?? []) {
     const entry: JourneyPlayer = {
+      journeyId: p.journey_id,
       player: { id: p.player.id, handle: p.player.handle, name: p.player.name, avatarUrl: p.player.avatar_url, color: p.player.color },
       duration: formatDuration(p.duration_seconds),
       playedAt: new Date(p.played_at),
