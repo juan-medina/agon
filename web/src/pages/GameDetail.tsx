@@ -151,23 +151,29 @@ function JourneyPlayerRow({ entry }: { entry: JourneyPlayer }) {
       <Link
         to={playerHref(entry.player, MY_PLAYER_ID)}
         onClick={(e) => e.stopPropagation()}
-        className="flex items-center gap-3 min-w-0 flex-1"
+        className="flex shrink-0 items-center gap-2"
       >
         <img
           src={avatarSrc(entry.player)}
           alt={entry.player.name}
           className="h-8 w-8 shrink-0 rounded-full object-cover"
         />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-baseline gap-1.5">
-            <span className="text-sm font-semibold">{entry.player.name}</span>
-            <span className="truncate text-xs text-muted-foreground">@{entry.player.handle}</span>
-          </div>
-          <div className="text-xs text-muted-foreground">
-            {entry.duration} · {formatJourneyDate(entry.playedAt)}
-          </div>
-        </div>
       </Link>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-baseline gap-1.5">
+          <Link
+            to={playerHref(entry.player, MY_PLAYER_ID)}
+            onClick={(e) => e.stopPropagation()}
+            className="text-sm font-semibold hover:underline"
+          >
+            {entry.player.name}
+          </Link>
+          <span className="truncate text-xs text-muted-foreground">@{entry.player.handle}</span>
+        </div>
+        <div className="text-xs text-muted-foreground">
+          {entry.duration} · {formatJourneyDate(entry.playedAt)}
+        </div>
+      </div>
       {entry.isSelf ? (
         <span className="shrink-0 text-xs text-muted-foreground">{t("journey_you")}</span>
       ) : (
