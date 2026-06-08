@@ -685,7 +685,13 @@ func (h *Handler) listMine(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) listByPlayer(w http.ResponseWriter, r *http.Request) {
-	playerID := r.PathValue("id")
+	value := r.PathValue("id")
+	player, err := db.GetUserByHandle(r.Context(), h.pool, value)
+	if err != nil {
+		http.Error(w, `{"error":"not_found"}`, http.StatusNotFound)
+		return
+	}
+	playerID := player.ID
 	viewerID, _ := h.tryAuthenticate(w, r)
 
 	limitStr := r.URL.Query().Get("limit")

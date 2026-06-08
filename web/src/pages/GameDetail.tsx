@@ -138,7 +138,7 @@ function JourneyPlayerRow({ entry }: { entry: JourneyPlayer }) {
   const navigate = useNavigate();
   const [following, setFollowing] = useState(entry.isFollowing);
   const followMutation = useMutation({
-    mutationFn: (follow: boolean) => follow ? followPlayer(entry.player.id) : unfollowPlayer(entry.player.id),
+    mutationFn: (follow: boolean) => follow ? followPlayer(entry.player.handle) : unfollowPlayer(entry.player.handle),
     onSuccess: (_data, follow) => setFollowing(follow),
   });
 

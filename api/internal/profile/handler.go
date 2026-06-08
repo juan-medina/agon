@@ -7,9 +7,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"regexp"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -43,24 +41,10 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("DELETE /api/players/{handle}/follow", h.unfollowPlayer)
 }
 
-// uuidRe matches the UUID-shaped path segments that legacy /player/{id} links
-// use. Such requests are redirected to the canonical handle-based URL.
-var uuidRe = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
-
-// resolvePlayer resolves the {handle} path segment to a user. UUID-shaped
-// segments (legacy links) are 302-redirected to the canonical handle URL.
-// Returns ok=false if a redirect or error response has already been written.
+// resolvePlayer resolves the {handle} path segment to a user.
+// Returns ok=false if an error response has already been written.
 func (h *Handler) resolvePlayer(w http.ResponseWriter, r *http.Request) (db.User, bool) {
 	value := r.PathValue("handle")
-	if uuidRe.MatchString(value) {
-		user, err := db.GetUser(r.Context(), h.pool, value)
-		if err != nil {
-			http.Error(w, `{"error":"not_found"}`, http.StatusNotFound)
-			return db.User{}, false
-		}
-		http.Redirect(w, r, strings.Replace(r.URL.Path, value, user.Handle, 1), http.StatusFound)
-		return db.User{}, false
-	}
 	user, err := db.GetUserByHandle(r.Context(), h.pool, value)
 	if err != nil {
 		http.Error(w, `{"error":"not_found"}`, http.StatusNotFound)

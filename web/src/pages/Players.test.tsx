@@ -4,7 +4,6 @@ import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { MOCK_GAME_ACTIVITY } from "@/test/fixtures";
-import { playerHref } from "@/lib/display";
 import { renderWithProviders } from "@/test/utils";
 import Players from "./Players";
 
@@ -67,8 +66,10 @@ describe("Players", () => {
     const firstGame = MOCK_GAME_ACTIVITY[0];
     const firstEntry = firstGame.entries[0];
     const links = await screen.findAllByRole("link", { name: new RegExp(firstEntry.player.name) });
-    const expectedHref = playerHref(firstEntry.player);
-    expect(links.some((l) => l.getAttribute("href") === expectedHref)).toBe(true);
+    // Assert the actual contract (URL keyed by handle) independently of playerHref's
+    // implementation — a regression that builds the link from player.id instead of
+    // player.handle must fail this, not pass by tautology.
+    expect(links.some((l) => l.getAttribute("href") === `/player/${firstEntry.player.handle}`)).toBe(true);
   });
 
   it("empty state appears when nothing matches search", async () => {

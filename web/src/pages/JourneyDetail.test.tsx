@@ -41,24 +41,30 @@ function makeFetch() {
     }
 
     // Follow / unfollow mutations
+    // Routes are keyed by handle (the API resolves {handle} to the internal user,
+    // mirroring the real backend); resolve the same way so a regression that builds
+    // the URL from player.id instead of player.handle fails this test.
+    const resolveByHandleOrId = (value: string) => PLAYERS.find((p) => p.id === value || p.handle === value);
+
     if (url.includes("/api/players/") && url.endsWith("/follow") && method === "POST") {
-      const pid = url.split("/api/players/")[1].replace("/follow", "");
-      followedIds.add(pid);
+      const value = url.split("/api/players/")[1].replace("/follow", "");
+      const player = resolveByHandleOrId(value);
+      if (player) followedIds.add(player.id);
       return new Response(null, { status: 204 });
     }
     if (url.includes("/api/players/") && url.endsWith("/follow") && method === "DELETE") {
-      const pid = url.split("/api/players/")[1].replace("/follow", "");
-      followedIds.delete(pid);
+      const value = url.split("/api/players/")[1].replace("/follow", "");
+      const player = resolveByHandleOrId(value);
+      if (player) followedIds.delete(player.id);
       return new Response(null, { status: 204 });
     }
 
     // Player detail (used by getIsFollowing)
     const playerDetailMatch = url.match(/\/api\/players\/([^/]+)$/);
     if (playerDetailMatch && method === "GET") {
-      const pid = playerDetailMatch[1];
-      const player = PLAYERS.find((p) => p.id === pid);
+      const player = resolveByHandleOrId(playerDetailMatch[1]);
       if (!player) return new Response("not found", { status: 404 });
-      return json(JSON.stringify({ id: player.id, handle: player.handle, name: player.name, avatar_url: null, color: player.color, followers: 0, following: 0, is_following: followedIds.has(pid) }));
+      return json(JSON.stringify({ id: player.id, handle: player.handle, name: player.name, avatar_url: null, color: player.color, followers: 0, following: 0, is_following: followedIds.has(player.id) }));
     }
 
     // Likes

@@ -157,14 +157,6 @@ export const JOURNEYS: Journey[] = [
   },
 ];
 
-export const MOCK_LIKERS: Player[] = [
-  { id: "l1", name: "Jordan Park", handle: "jordanp.bsky.social", color: "#0284c7" },
-  { id: "l2", name: "Priya Nair", handle: "priyanair.bsky.social", color: "#7c3aed" },
-  { id: "l3", name: "Luca Rossi", handle: "lucarossi.bsky.social", color: "#059669" },
-  { id: "l4", name: "Fen Wu", handle: "fenwu.bsky.social", color: "#db2777" },
-  { id: "l5", name: "Alex Torres", handle: "alextorres.bsky.social", color: "#059669" },
-];
-
 export const MOCK_COMMENTS: Comment[] = [
   {
     id: "c1", player: PLAYERS[1],
@@ -221,6 +213,17 @@ const OTHER_PLAYERS: Player[] = [
   { id: "o2", name: "Priya Nair", handle: "priyanair.bsky.social", color: "#7c3aed" },
   { id: "o3", name: "Luca Rossi", handle: "lucarossi.bsky.social", color: "#059669" },
   { id: "o4", name: "Fen Wu", handle: "fenwu.bsky.social", color: "#db2777" },
+];
+
+// Reuses the canonical OTHER_PLAYERS/PLAYERS records rather than minting
+// near-duplicate ones — two distinct users can never share a handle in
+// reality (handles are unique), so fixtures must not model that either.
+export const MOCK_LIKERS: Player[] = [
+  OTHER_PLAYERS[0],
+  OTHER_PLAYERS[1],
+  OTHER_PLAYERS[2],
+  OTHER_PLAYERS[3],
+  PLAYERS[1],
 ];
 
 export const MY_FOLLOWING: Player[] = MOCK_FRIENDS_ON_JOURNEY.map((jp) => jp.player);

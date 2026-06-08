@@ -39,7 +39,7 @@ function JourneyPlayerRow({ entry, currentPlayerId }: { entry: JourneyPlayer; cu
   const isMe = entry.player.id === currentPlayerId;
   const [following, setFollowing] = useState(entry.isFollowing);
   const followMutation = useMutation({
-    mutationFn: (follow: boolean) => follow ? followPlayer(entry.player.id) : unfollowPlayer(entry.player.id),
+    mutationFn: (follow: boolean) => follow ? followPlayer(entry.player.handle) : unfollowPlayer(entry.player.handle),
     onSuccess: (_data, follow) => setFollowing(follow),
   });
 
@@ -189,7 +189,7 @@ export default function JourneyDetail() {
 
   const { data: ownerIsFollowed = false } = useQuery({
     queryKey: ["following", journey?.player.id],
-    queryFn: () => getIsFollowing(journey!.player.id),
+    queryFn: () => getIsFollowing(journey!.player.handle),
     enabled: !!journey && !isOwner,
   });
 
@@ -199,7 +199,7 @@ export default function JourneyDetail() {
   });
 
   const followOwnerMutation = useMutation({
-    mutationFn: (follow: boolean) => follow ? followPlayer(journey!.player.id) : unfollowPlayer(journey!.player.id),
+    mutationFn: (follow: boolean) => follow ? followPlayer(journey!.player.handle) : unfollowPlayer(journey!.player.handle),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["following", journey?.player.id] }),
   });
 
