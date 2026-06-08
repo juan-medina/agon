@@ -26,7 +26,7 @@ ok "Build succeeded"
 
 systemctl stop yurnik
 
-if ! YURNIK_ENV=production "$REPO_ROOT/scripts/db-migrate.sh"; then
+if ! YURNIK_ENV=production bash "$REPO_ROOT/scripts/db-migrate.sh"; then
     err "Migration failed -- restarting previous version"
     systemctl start yurnik
     exit 1
