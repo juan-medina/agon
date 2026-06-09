@@ -5,12 +5,11 @@
   "observability": {
     "enabled": true
   },
-  "main": "functions/_middleware.ts",
   "assets": {
     "not_found_handling": "single-page-application"
   },
   "vars": {
-    "API_URL": "https://api.yurnik.gg"
+    "API_URL": "https://api.yurnik.social"
   },
   "compatibility_flags": [
     "nodejs_compat"
