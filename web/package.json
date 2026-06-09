@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build && pnpm exec esbuild functions/_middleware.ts --bundle --outfile=dist/_worker.js --format=esm --platform=browser",
+    "build": "tsc -b && vite build",
     "preview": "pnpm run build && wrangler dev",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -44,7 +44,6 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
-    "esbuild": "^0.28.0",
     "jsdom": "latest",
     "tailwindcss": "latest",
     "typescript": "~6.0.2",

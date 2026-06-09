@@ -8,9 +8,6 @@
   "assets": {
     "not_found_handling": "single-page-application"
   },
-  "vars": {
-    "API_URL": "https://api.yurnik.social"
-  },
   "compatibility_flags": [
     "nodejs_compat"
   ]
