@@ -3,16 +3,14 @@
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import GenreChip from "@/components/GenreChip";
-import { CalendarDays, Check, ChevronLeft, Clock, Heart, Pencil, Trash2, UserPlus } from "lucide-react";
+import { CalendarDays, Check, ChevronLeft, Clock, Pencil, Trash2, UserPlus } from "lucide-react";
 import { Info } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { getJourney, getComments, getLikers, getJourneyPlayers, postComment, deleteJourney, deleteComment, updateJourney } from "@/services/journeys";
-import { toggleLike } from "@/services/journeys";
+import { getJourney, getComments, getJourneyPlayers, postComment, deleteJourney, deleteComment, updateJourney } from "@/services/journeys";
 import { followPlayer, unfollowPlayer, getIsFollowing } from "@/services/players";
 import { getCurrentPlayer } from "@/services/auth";
 import { avatarSrc, playerHref } from "@/lib/display";
-import FollowListModal from "@/components/FollowListModal";
 import SignInPromptModal from "@/components/SignInPromptModal";
 import { GameSelector } from "@/components/GameSelector";
 import { parseDuration } from "@/lib/duration";
@@ -150,7 +148,6 @@ export default function JourneyDetail() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [commentText, setCommentText] = useState("");
-  const [showLikers, setShowLikers] = useState(false);
   const [showSignIn, setShowSignIn] = useState(false);
   const [confirmDeleteJourney, setConfirmDeleteJourney] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -178,12 +175,6 @@ export default function JourneyDetail() {
     refetchIntervalInBackground: false,
   });
 
-  const { data: likers = [] } = useQuery({
-    queryKey: ["journey", id, "likers"],
-    queryFn: () => getLikers(id!),
-    enabled: !!id,
-  });
-
   const { data: journeyPlayers } = useQuery({
     queryKey: ["journey", id, "players"],
     queryFn: () => getJourneyPlayers(id!),
@@ -198,11 +189,6 @@ export default function JourneyDetail() {
     queryKey: ["following", journey?.player.id],
     queryFn: () => getIsFollowing(journey!.player.handle),
     enabled: !!journey && !isOwner,
-  });
-
-  const likeMutation = useMutation({
-    mutationFn: ({ id: jid, liked }: { id: string; liked: boolean }) => toggleLike({ id: jid, liked }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["journey", id] }),
   });
 
   const followOwnerMutation = useMutation({
@@ -473,54 +459,6 @@ export default function JourneyDetail() {
         )}
       </div>
 
-      {/* Likes */}
-      <div className="mt-4 rounded-lg border border-border bg-card p-4">
-        <div className="flex items-center gap-4">
-          {isOwner ? (
-            <div className="flex items-center gap-2">
-              <Heart size={22} className="text-muted-foreground/40" />
-              <span className="text-sm font-medium text-muted-foreground">{journey.likes}</span>
-            </div>
-          ) : (
-            <button
-              onClick={() => { if (!currentPlayer) { setShowSignIn(true); return; } likeMutation.mutate({ id: journey.id, liked: journey.liked }); }}
-              className="flex items-center gap-2 transition-colors"
-              aria-label={journey.liked ? t("journey_unlike") : t("journey_like")}
-            >
-              <Heart
-                size={22}
-                className={journey.liked ? "fill-rose-500 text-rose-500" : "text-muted-foreground hover:text-rose-400"}
-              />
-              <span className={`text-sm font-medium ${journey.liked ? "text-rose-500" : "text-muted-foreground"}`}>
-                {journey.likes}
-              </span>
-            </button>
-          )}
-          {likers.length > 0 && (
-            <button
-              onClick={() => setShowLikers(true)}
-              className="flex items-center gap-2 transition-opacity hover:opacity-75"
-              aria-label={t("journey_see_likers")}
-            >
-              <div className="flex -space-x-2">
-                {likers.slice(0, 5).map((liker) => (
-                  <img
-                    key={liker.id}
-                    src={avatarSrc(liker)}
-                    alt={liker.name}
-                    title={liker.name}
-                    className="h-7 w-7 rounded-full border-2 border-card object-cover"
-                  />
-                ))}
-              </div>
-              {likers.length > 5 && (
-                <span className="text-xs text-muted-foreground">{t("journey_more_likers", { count: likers.length - 5 })}</span>
-              )}
-            </button>
-          )}
-        </div>
-      </div>
-
       {/* Comments */}
       <div className="mt-4 rounded-lg border border-border bg-card">
         <div className="border-b border-border px-4 py-3">
@@ -591,14 +529,6 @@ export default function JourneyDetail() {
       </div>
 
       <div className="h-8" />
-
-      {showLikers && (
-        <FollowListModal
-          title={t("journey_liked_by")}
-          players={likers}
-          onClose={() => setShowLikers(false)}
-        />
-      )}
 
       {showSignIn && <SignInPromptModal onClose={() => setShowSignIn(false)} />}
 

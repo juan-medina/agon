@@ -158,31 +158,6 @@ func ListEchoes(ctx context.Context, pool *pgxpool.Pool, userID string) ([]EchoR
 	return echoes, rows.Err()
 }
 
-// UpsertLikeEcho creates or updates a new_like echo for the journey owner when
-// actorID likes the journey. No-op if actorID == recipientID (own journey).
-// New activity resets seen_at so the echo appears unread again.
-func UpsertLikeEcho(ctx context.Context, pool *pgxpool.Pool, recipientID, actorID, journeyID, subjectTitle string) error {
-	if recipientID == actorID {
-		return nil
-	}
-	var echoID int64
-	err := pool.QueryRow(ctx, `
-		INSERT INTO echoes (recipient_id, type, subject_id, subject_title, updated_at)
-		VALUES ($1, 'new_like', $2, $3, now())
-		ON CONFLICT (recipient_id, subject_id) WHERE type = 'new_like'
-		DO UPDATE SET updated_at = now(), subject_title = EXCLUDED.subject_title, seen_at = NULL
-		RETURNING id
-	`, recipientID, journeyID, subjectTitle).Scan(&echoID)
-	if err != nil {
-		return fmt.Errorf("upsert like echo: %w", err)
-	}
-	_, err = pool.Exec(ctx, `
-		INSERT INTO echo_actors (echo_id, actor_id) VALUES ($1, $2)
-		ON CONFLICT DO NOTHING
-	`, echoID, actorID)
-	return err
-}
-
 // MarkEchoesRead stamps seen_at on all unseen echoes for the user.
 func MarkEchoesRead(ctx context.Context, pool *pgxpool.Pool, userID string) error {
 	_, err := pool.Exec(ctx, `

@@ -14,8 +14,6 @@ export type Journey = {
   duration: string;
   playedAt: Date;
   log?: string;
-  likes: number;
-  liked: boolean;
 };
 
 export type UpdateJourney = {

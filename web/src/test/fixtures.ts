@@ -68,14 +68,12 @@ export const JOURNEYS: Journey[] = [
     genres: ["RPG", "Soulslike", "Open World"],
     duration: "3h 14m", playedAt: minsAgo(23),
     log: "Finally took down Malenia after 40 attempts. The muscle memory just clicked.",
-    likes: 47, liked: false,
   },
   {
     id: "s2", igdbId: 2, player: PLAYERS[1], game: "Baldur's Gate 3",
     coverUrl: coverUrl("Baldur's Gate 3"),
     genres: ["RPG", "Strategy", "Co-op"],
     duration: "4h 30m", playedAt: hoursAgo(1),
-    likes: 12, liked: false,
   },
   {
     id: "s3", igdbId: 3, player: PLAYERS[2], game: "Hollow Knight",
@@ -83,14 +81,12 @@ export const JOURNEYS: Journey[] = [
     genres: ["Metroidvania", "Action", "Indie"],
     duration: "2h 07m", playedAt: hoursAgo(3),
     log: "The Abyss section hit different today. Incredible atmosphere.",
-    likes: 8, liked: false,
   },
   {
     id: "s4", igdbId: 4, player: PLAYERS[3], game: "Cyberpunk 2077",
     coverUrl: coverUrl("Cyberpunk 2077"),
     genres: ["RPG", "Open World", "Sci-fi"],
     duration: "1h 52m", playedAt: new Date(),
-    likes: 0, liked: false,
   },
   {
     id: "s5", igdbId: 5, player: PLAYERS[0], game: "Hades II",
@@ -98,14 +94,12 @@ export const JOURNEYS: Journey[] = [
     genres: ["Roguelite", "Action", "Indie"],
     duration: "45m", playedAt: daysAgo(1),
     log: "New build is insane — Aspect of Melinoë with the moon staff.",
-    likes: 23, liked: false,
   },
   {
     id: "s6", igdbId: 6, player: PLAYERS[1], game: "Dead Cells",
     coverUrl: coverUrl("Dead Cells"),
     genres: ["Roguelike", "Action", "Platformer"],
     duration: "1h 18m", playedAt: daysAgo(2),
-    likes: 5, liked: false,
   },
   {
     id: "s7", igdbId: 1, player: PLAYERS[2], game: "Elden Ring",
@@ -113,7 +107,6 @@ export const JOURNEYS: Journey[] = [
     genres: ["RPG", "Soulslike", "Open World"],
     duration: "2h 44m", playedAt: daysAgo(2),
     log: "Started a fresh Arcane build. Let's see how this goes.",
-    likes: 31, liked: false,
   },
   {
     id: "s8", igdbId: 1,
@@ -121,7 +114,6 @@ export const JOURNEYS: Journey[] = [
     game: "Elden Ring", coverUrl: coverUrl("Elden Ring"),
     genres: ["RPG", "Soulslike", "Open World"],
     duration: "3h 02m", playedAt: daysAgo(1),
-    likes: 4, liked: false,
   },
   {
     id: "s9", igdbId: 4,
@@ -129,7 +121,6 @@ export const JOURNEYS: Journey[] = [
     game: "Cyberpunk 2077", coverUrl: coverUrl("Cyberpunk 2077"),
     genres: ["RPG", "Open World", "Sci-fi"],
     duration: "55m", playedAt: daysAgo(3),
-    likes: 2, liked: false,
   },
   {
     id: "s10", igdbId: 3,
@@ -137,7 +128,6 @@ export const JOURNEYS: Journey[] = [
     game: "Hollow Knight", coverUrl: coverUrl("Hollow Knight"),
     genres: ["Metroidvania", "Action", "Indie"],
     duration: "2h 11m", playedAt: daysAgo(7),
-    likes: 7, liked: false,
   },
   {
     id: "s11", igdbId: 5,
@@ -145,7 +135,6 @@ export const JOURNEYS: Journey[] = [
     game: "Hades II", coverUrl: coverUrl("Hades II"),
     genres: ["Roguelite", "Action", "Indie"],
     duration: "6h 18m", playedAt: daysAgo(3),
-    likes: 15, liked: false,
   },
   {
     id: "s12", igdbId: 6,
@@ -153,7 +142,6 @@ export const JOURNEYS: Journey[] = [
     game: "Dead Cells", coverUrl: coverUrl("Dead Cells"),
     genres: ["Roguelike", "Action", "Platformer"],
     duration: "1h 10m", playedAt: daysAgo(5),
-    likes: 1, liked: false,
   },
 ];
 
@@ -213,17 +201,6 @@ const OTHER_PLAYERS: Player[] = [
   { id: "o2", name: "Priya Nair", handle: "priyanair.bsky.social", color: "#7c3aed" },
   { id: "o3", name: "Luca Rossi", handle: "lucarossi.bsky.social", color: "#059669" },
   { id: "o4", name: "Fen Wu", handle: "fenwu.bsky.social", color: "#db2777" },
-];
-
-// Reuses the canonical OTHER_PLAYERS/PLAYERS records rather than minting
-// near-duplicate ones — two distinct users can never share a handle in
-// reality (handles are unique), so fixtures must not model that either.
-export const MOCK_LIKERS: Player[] = [
-  OTHER_PLAYERS[0],
-  OTHER_PLAYERS[1],
-  OTHER_PLAYERS[2],
-  OTHER_PLAYERS[3],
-  PLAYERS[1],
 ];
 
 export const MY_FOLLOWING: Player[] = MOCK_FRIENDS_ON_JOURNEY.map((jp) => jp.player);

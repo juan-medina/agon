@@ -100,7 +100,6 @@ All errors return a JSON body:
   "ended_at": "2026-05-23T16:14:00Z",
   "duration_seconds": 11640,
   "log": "Finally beat the final boss.",
-  "like_count": 12,
   "comment_count": 4,
   "played_at": "2026-05-23T13:00:00Z",
   "created_at": "2026-05-23T16:20:00Z"
@@ -459,41 +458,6 @@ Called by the agent when the game process closes.
 
 ---
 
-## Likes
-
-### Like a journey
-
-```
-POST /journeys/:id/like
-```
-
-**Response** — `204 No Content`
-
-### Unlike a journey
-
-```
-DELETE /journeys/:id/like
-```
-
-**Response** — `204 No Content`
-
-### List likes for a journey
-
-```
-GET /journeys/:id/likes
-```
-
-**Response**
-
-```json
-{
-  "players": [ Player ],
-  "next_cursor": "..."
-}
-```
-
----
-
 ## Comments
 
 ### List comments for a journey
@@ -601,7 +565,7 @@ In-app notifications for the authenticated user, reverse chronological by `updat
 }
 ```
 
-`type` is `new_comment`, `new_follower`, or `new_like`. `subject_id` and `subject_title` are null for `new_follower` echoes. `actors` contains at most 3 players — `actor_count` gives the full total. `subject_title` is snapshotted at creation and remains even if the journey is later deleted. `read` is `false` while `seen_at` is null in the database.
+`type` is `new_comment` or `new_follower`. `subject_id` and `subject_title` are null for `new_follower` echoes. `actors` contains at most 3 players — `actor_count` gives the full total. `subject_title` is snapshotted at creation and remains even if the journey is later deleted. `read` is `false` while `seen_at` is null in the database.
 
 ### Mark all echoes as read
 

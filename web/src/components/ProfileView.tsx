@@ -23,7 +23,6 @@ interface ProfileViewProps {
   journeys: Journey[];
   followers: Player[];
   following: Player[];
-  journeyQueryKey: unknown[];
   sectionTitle: string;
   /** Back button or other nav rendered above the profile card */
   header?: ReactNode;
@@ -40,7 +39,6 @@ export default function ProfileView({
   journeys,
   followers,
   following,
-  journeyQueryKey,
   sectionTitle,
   header,
   profileActions,
@@ -199,7 +197,7 @@ export default function ProfileView({
       {journeys.length > 0 ? (
         <div className="flex flex-col gap-3">
           {journeys.map((journey) => (
-            <JourneyCard key={journey.id} journey={journey} queryKey={journeyQueryKey} />
+            <JourneyCard key={journey.id} journey={journey} />
           ))}
         </div>
       ) : (

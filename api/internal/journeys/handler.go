@@ -62,9 +62,6 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/journeys/{id}/comments", h.listComments)
 	mux.HandleFunc("POST /api/journeys/{id}/comments", h.postComment)
 	mux.HandleFunc("DELETE /api/journeys/{id}/comments/{commentId}", h.deleteComment)
-	mux.HandleFunc("GET /api/journeys/{id}/likers", h.listLikers)
-	mux.HandleFunc("POST /api/journeys/{id}/like", h.likeJourney)
-	mux.HandleFunc("DELETE /api/journeys/{id}/like", h.unlikeJourney)
 	mux.HandleFunc("POST /api/players/me/journeys", h.add)
 	mux.HandleFunc("PATCH /api/players/me/journeys/{id}", h.update)
 	mux.HandleFunc("DELETE /api/players/me/journeys/{id}", h.delete)
@@ -78,8 +75,7 @@ func (h *Handler) Register(mux *http.ServeMux) {
 
 func (h *Handler) get(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	viewerID, _ := h.tryAuthenticate(w, r)
-	j, err := db.GetJourneyByID(r.Context(), h.pool, id, viewerID)
+	j, err := db.GetJourneyByID(r.Context(), h.pool, id)
 	if err != nil {
 		http.Error(w, `{"error":"not_found"}`, http.StatusNotFound)
 		return
@@ -103,8 +99,6 @@ func (h *Handler) get(w http.ResponseWriter, r *http.Request) {
 		Log             *string    `json:"log,omitempty"`
 		PlayedAt        string     `json:"played_at"`
 		Player          playerResp `json:"player"`
-		LikeCount       int        `json:"like_count"`
-		IsLiked         bool       `json:"is_liked"`
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -125,74 +119,7 @@ func (h *Handler) get(w http.ResponseWriter, r *http.Request) {
 			AvatarURL: j.PlayerAvatarURL,
 			Color:     j.PlayerColor,
 		},
-		LikeCount: j.LikeCount,
-		IsLiked:   j.IsLiked,
 	})
-}
-
-func (h *Handler) listLikers(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("id")
-	likers, err := db.ListLikers(r.Context(), h.pool, id)
-	if err != nil {
-		log.Printf("journeys/listLikers: %v", err)
-		http.Error(w, `{"error":"internal_error"}`, http.StatusInternalServerError)
-		return
-	}
-
-	type likerResp struct {
-		ID        string  `json:"id"`
-		Handle    string  `json:"handle"`
-		Name      string  `json:"name"`
-		AvatarURL *string `json:"avatar_url,omitempty"`
-		Color     string  `json:"color"`
-	}
-	resp := make([]likerResp, 0, len(likers))
-	for _, l := range likers {
-		resp = append(resp, likerResp{
-			ID:        l.UserID,
-			Handle:    l.Handle,
-			Name:      l.Name,
-			AvatarURL: l.AvatarURL,
-			Color:     l.Color,
-		})
-	}
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]any{"likers": resp})
-}
-
-func (h *Handler) likeJourney(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.authenticate(w, r)
-	if !ok {
-		return
-	}
-	id := r.PathValue("id")
-	if err := db.InsertLike(r.Context(), h.pool, id, userID); err != nil {
-		log.Printf("journeys/like: %v", err)
-		http.Error(w, `{"error":"internal_error"}`, http.StatusInternalServerError)
-		return
-	}
-
-	// Best-effort echo — never block the response on notification failure.
-	if meta, err := db.GetJourneyMeta(r.Context(), h.pool, id); err == nil {
-		if err := db.UpsertLikeEcho(r.Context(), h.pool, meta.OwnerID, userID, id, meta.GameName); err != nil {
-			log.Printf("journeys/like: upsert echo: %v", err)
-		}
-	}
-
-	w.WriteHeader(http.StatusNoContent)
-}
-
-func (h *Handler) unlikeJourney(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.authenticate(w, r)
-	if !ok {
-		return
-	}
-	id := r.PathValue("id")
-	if err := db.DeleteLike(r.Context(), h.pool, id, userID); err != nil {
-		http.Error(w, `{"error":"not_found"}`, http.StatusNotFound)
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h *Handler) players(w http.ResponseWriter, r *http.Request) {
@@ -366,8 +293,6 @@ type journeyResponse struct {
 	DurationSeconds int      `json:"duration_seconds"`
 	Log             *string  `json:"log,omitempty"`
 	PlayedAt        string   `json:"played_at"`
-	LikeCount       int      `json:"like_count"`
-	IsLiked         bool     `json:"is_liked"`
 }
 
 func (h *Handler) listPending(w http.ResponseWriter, r *http.Request) {
@@ -642,8 +567,7 @@ func (h *Handler) listMine(w http.ResponseWriter, r *http.Request) {
 	}
 	cursor := r.URL.Query().Get("cursor")
 
-	// Own journeys — viewer = owner, is_liked always false
-	journeys, err := db.ListJourneysByUser(r.Context(), h.pool, userID, limit+1, cursor, "")
+	journeys, err := db.ListJourneysByUser(r.Context(), h.pool, userID, limit+1, cursor)
 	if err != nil {
 		log.Printf("journeys/listMine: %v", err)
 		http.Error(w, `{"error":"internal_error"}`, http.StatusInternalServerError)
@@ -670,7 +594,6 @@ func (h *Handler) listMine(w http.ResponseWriter, r *http.Request) {
 			DurationSeconds: j.DurationSeconds,
 			Log:             j.Log,
 			PlayedAt:        j.PlayedAt.UTC().Format(time.RFC3339),
-			LikeCount:       j.LikeCount,
 		}
 		resp = append(resp, item)
 	}
@@ -692,7 +615,6 @@ func (h *Handler) listByPlayer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	playerID := player.ID
-	viewerID, _ := h.tryAuthenticate(w, r)
 
 	limitStr := r.URL.Query().Get("limit")
 	limit := 20
@@ -703,7 +625,7 @@ func (h *Handler) listByPlayer(w http.ResponseWriter, r *http.Request) {
 	}
 	cursor := r.URL.Query().Get("cursor")
 
-	journeys, err := db.ListJourneysByUser(r.Context(), h.pool, playerID, limit+1, cursor, viewerID)
+	journeys, err := db.ListJourneysByUser(r.Context(), h.pool, playerID, limit+1, cursor)
 	if err != nil {
 		log.Printf("journeys/listByPlayer: %v", err)
 		http.Error(w, `{"error":"internal_error"}`, http.StatusInternalServerError)
@@ -730,8 +652,6 @@ func (h *Handler) listByPlayer(w http.ResponseWriter, r *http.Request) {
 			DurationSeconds: j.DurationSeconds,
 			Log:             j.Log,
 			PlayedAt:        j.PlayedAt.UTC().Format(time.RFC3339),
-			LikeCount:       j.LikeCount,
-			IsLiked:         j.IsLiked,
 		}
 		resp = append(resp, item)
 	}

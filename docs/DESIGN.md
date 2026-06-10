@@ -91,13 +91,12 @@ users              — one row per player, keyed on internal UUID
 journeys           — confirmed journeys, all data, permanent
 pending_journeys   — unconfirmed journeys, evicted after 7 days
 follows            — follow graph, written on follow, deleted on unfollow
-likes              — one row per (journey, user) pair
 comments           — flat, chronological, attached to a journey
 exe_exclusions     — per user, executables to never detect
 exe_game_hints     — per user, exe_name → igdb_id, built from confirmed corrections
 igdb_cache         — server-side IGDB responses with TTL
 echoes             — per user, batched notifications; one row per (recipient, type, subject)
-echo_actors        — actors who contributed to an echo (commenters, followers, likers)
+echo_actors        — actors who contributed to an echo (commenters, followers)
 ```
 
 ```
@@ -114,7 +113,7 @@ journeys(id, user_id, igdb_id, started_at, ended_at, log, played_at, created_at)
 
 The Realm feed query joins `journeys` against `follows` to return journeys from followed players — one SQL query.
 
-The journey detail query fetches the journey row, its like count, its comments, and whether the requesting user follows the journey owner — all from Postgres.
+The journey detail query fetches the journey row, its comments, and whether the requesting user follows the journey owner — all from Postgres.
 
 ## Social graph
 
@@ -123,18 +122,6 @@ follows(follower_id, followee_id, created_at)
 ```
 
 Written on follow, deleted on unfollow. Powers the Realm feed join and follower/following lists. New follower echoes are written at the same time as the follow row.
-
-## Likes
-
-```
-likes(journey_id, user_id, created_at)
-```
-
-One row per (journey, user) pair. Written on like, deleted on unlike. Powers like counts and the liked-by list on journey detail.
-
-Likes are **not surfaced as feed items** in the Realm. The like button appears inline on each Realm feed card and in the journey detail.
-
-Likes **do** trigger an Echo — batched, so "Juan and 2 others liked your journey" is one notification, not three. Liking your own journey does not trigger an echo.
 
 ## Log and comments
 
@@ -153,7 +140,7 @@ echoes(id, recipient_id, type, subject_id, subject_title, seen_at, created_at, u
 echo_actors(echo_id, actor_id, created_at)
 ```
 
-`type` is one of `new_comment`, `new_follower`, `new_like`.
+`type` is one of `new_comment`, `new_follower`.
 
 `subject_id` is the journey ID for `new_comment` echoes; null for `new_follower` echoes.
 
@@ -163,7 +150,7 @@ echo_actors(echo_id, actor_id, created_at)
 
 `updated_at` is bumped each time a new actor is added to an existing echo, so the panel can show the time of most recent activity.
 
-New follower echoes are written in the same transaction as the `follows` row. New comment echoes are written in the same transaction as the `comments` row, unless the commenter is the journey owner. New like echoes are written on like, unless the liker is the journey owner. Unlike does not remove the echo.
+New follower echoes are written in the same transaction as the `follows` row. New comment echoes are written in the same transaction as the `comments` row, unless the commenter is the journey owner.
 
 ## Realm feed
 
@@ -195,9 +182,7 @@ Clicking a player row navigates to that player's profile. Clicking a journey row
 Tapping a journey card opens the journey detail at `/journey/:id`. It shows:
 
 - Full journey metadata and log
-- Like button — the only place the like action is exposed
-- Liked-by avatars — a subset shown inline, expandable to the full list
-- Comments — flat, chronological, posted by any player including the owner; not likeable
+- Comments — flat, chronological, posted by any player including the owner
 - **Following on this journey** — people you follow who have also played this game, ordered by most recent journey, up to 20
 - **Others on this journey** — players outside your follow graph who have played this game, ordered by most recent journey, up to 20
 

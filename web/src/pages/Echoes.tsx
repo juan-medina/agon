@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
-import { Heart, MessageSquare, UserPlus } from "lucide-react";
+import { MessageSquare, UserPlus } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
@@ -13,7 +13,7 @@ import { formatCommentAge } from "@/lib/time";
 import FollowListModal from "@/components/FollowListModal";
 import type { Echo, Player } from "@/models";
 
-type Filter = "all" | "comments" | "likes" | "followers";
+type Filter = "all" | "comments" | "followers";
 
 function ActorAvatars({ actors }: { actors: Player[] }) {
   return (
@@ -33,7 +33,6 @@ function ActorAvatars({ actors }: { actors: Player[] }) {
 function EchoIcon({ type }: { type: Echo["type"] }) {
   const icon =
     type === "new_comment" ? <MessageSquare size={13} /> :
-    type === "new_like"    ? <Heart size={13} /> :
                              <UserPlus size={13} />;
   return (
     <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
@@ -56,10 +55,9 @@ function EchoRow({ echo }: { echo: Echo }) {
   const [showActors, setShowActors] = useState(false);
 
   const isFollowerBatch = echo.type === "new_follower" && echo.actorCount > 1;
-  const journeyDeleted =
-    (echo.type === "new_comment" || echo.type === "new_like") && echo.subjectId === null;
+  const journeyDeleted = echo.type === "new_comment" && echo.subjectId === null;
   const to =
-    echo.type === "new_comment" || echo.type === "new_like"
+    echo.type === "new_comment"
       ? `/journey/${echo.subjectId}`
       : `/player/${echo.actors[0]?.id}`;
 
@@ -81,17 +79,6 @@ function EchoRow({ echo }: { echo: Echo }) {
               {t("echoes_commented")}
               <span className="font-medium">{echo.subjectTitle}</span>
               {t("echoes_commented_suffix")}
-              {journeyDeleted && (
-                <span className="ml-1.5 rounded bg-muted px-1.5 py-0.5 text-xs font-normal text-muted-foreground">
-                  {t("echoes_removed")}
-                </span>
-              )}
-            </>
-          ) : echo.type === "new_like" ? (
-            <>
-              {t("echoes_liked")}
-              <span className="font-medium">{echo.subjectTitle}</span>
-              {t("echoes_liked_suffix")}
               {journeyDeleted && (
                 <span className="ml-1.5 rounded bg-muted px-1.5 py-0.5 text-xs font-normal text-muted-foreground">
                   {t("echoes_removed")}
@@ -161,20 +148,17 @@ export default function Echoes() {
   const filterLabels: { value: Filter; labelKey: string }[] = [
     { value: "all", labelKey: "echoes_filter_all" },
     { value: "comments", labelKey: "echoes_filter_comments" },
-    { value: "likes", labelKey: "echoes_filter_likes" },
     { value: "followers", labelKey: "echoes_filter_followers" },
   ];
 
   const emptyKey: Record<Filter, string> = {
     all: "echoes_empty_all",
     comments: "echoes_empty_comments",
-    likes: "echoes_empty_likes",
     followers: "echoes_empty_followers",
   };
 
   const visible = echoes.filter((e) => {
     if (filter === "comments") return e.type === "new_comment";
-    if (filter === "likes") return e.type === "new_like";
     if (filter === "followers") return e.type === "new_follower";
     return true;
   });

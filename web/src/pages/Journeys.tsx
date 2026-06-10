@@ -462,7 +462,7 @@ export default function Journeys() {
         </h2>
         {history.length > 0 ? (
           <div className="flex flex-col gap-3">
-            {history.map((j) => <JourneyCard key={j.id} journey={j} queryKey={["journeys", "user"]} />)}
+            {history.map((j) => <JourneyCard key={j.id} journey={j} />)}
           </div>
         ) : (
           <p className="text-sm text-muted-foreground">{t("journeys_empty")}</p>

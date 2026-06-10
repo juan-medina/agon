@@ -36,7 +36,7 @@ export default function Realm() {
     <div className="mx-auto max-w-2xl">
       <div className="flex flex-col gap-3">
         {journeys.map((journey) => (
-          <JourneyCard key={journey.id} journey={journey} queryKey={["feed"]} showPlayer />
+          <JourneyCard key={journey.id} journey={journey} showPlayer />
         ))}
       </div>
     </div>

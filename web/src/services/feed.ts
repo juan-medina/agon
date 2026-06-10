@@ -22,8 +22,6 @@ type RawFeedEntry = {
     avatar_url?: string;
     color: string;
   };
-  like_count: number;
-  is_liked: boolean;
 };
 
 export async function getFeedJourneys(): Promise<Journey[]> {
@@ -47,7 +45,5 @@ export async function getFeedJourneys(): Promise<Journey[]> {
     duration: formatDuration(j.duration_seconds),
     playedAt: new Date(j.played_at),
     log: j.log,
-    likes: j.like_count,
-    liked: j.is_liked,
   }));
 }

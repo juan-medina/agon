@@ -142,7 +142,6 @@ export default function PlayerProfile() {
         journeys={journeys}
         followers={followers}
         following={following}
-        journeyQueryKey={["journeys", "player", handle]}
         sectionTitle={isOwnProfile ? t("hero_section_journeys") : `${profile.player.name}'s journeys`}
         header={
           <button

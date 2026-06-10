@@ -3,7 +3,6 @@
 
 import type { Journey, PendingJourney, NewJourney, UpdateJourney } from "@/models/journey";
 import type { Comment, JourneyPlayer } from "@/models/game";
-import type { Player } from "@/models/player";
 import { API_BASE, apiFetch } from "@/lib/api";
 import { formatDuration } from "@/lib/time";
 import { getCurrentPlayer } from "./auth";
@@ -25,8 +24,6 @@ type RawJourneyDetail = {
     avatar_url?: string;
     color: string;
   };
-  like_count: number;
-  is_liked: boolean;
 };
 
 type RawPendingJourney = {
@@ -52,7 +49,6 @@ type RawJourney = {
   played_at: string;
   duration_seconds: number;
   log?: string;
-  like_count?: number;
 };
 
 export async function getUserJourneys(): Promise<Journey[]> {
@@ -75,8 +71,6 @@ export async function getUserJourneys(): Promise<Journey[]> {
     duration: formatDuration(j.duration_seconds ?? 0),
     playedAt: new Date(j.played_at),
     log: j.log,
-    likes: j.like_count ?? 0,
-    liked: false,
   }));
 }
 
@@ -103,14 +97,6 @@ export async function getPendingJourneys(): Promise<PendingJourney[]> {
       windowTitle: p.window_title,
     };
   });
-}
-
-export async function toggleLike({ id, liked }: { id: string; liked: boolean }): Promise<void> {
-  const resp = await apiFetch(`${API_BASE}/api/journeys/${id}/like`, {
-    method: liked ? "DELETE" : "POST",
-    credentials: "include",
-  });
-  if (!resp.ok) throw new Error(`toggle like: ${resp.status}`);
 }
 
 export async function addJourney(input: NewJourney): Promise<void> {
@@ -186,14 +172,6 @@ export async function excludePendingJourney(pendingId: string): Promise<void> {
   if (!resp.ok) throw new Error(`exclude pending journey: ${resp.status}`);
 }
 
-type RawLiker = {
-  id: string;
-  handle: string;
-  name: string;
-  avatar_url?: string;
-  color: string;
-};
-
 type RawComment = {
   id: string;
   player: { id: string; handle: string; name: string; avatar_url?: string; color: string };
@@ -223,8 +201,6 @@ export async function getJourney(id: string): Promise<Journey | undefined> {
     duration: formatDuration(j.duration_seconds),
     playedAt: new Date(j.played_at),
     log: j.log,
-    likes: j.like_count,
-    liked: j.is_liked,
   };
 }
 
@@ -243,19 +219,6 @@ export async function getComments(journeyId: string): Promise<Comment[]> {
     },
     text: c.text,
     commentedAt: new Date(c.commented_at),
-  }));
-}
-
-export async function getLikers(journeyId: string): Promise<Player[]> {
-  const resp = await apiFetch(`${API_BASE}/api/journeys/${journeyId}/likers`, { credentials: "include" });
-  if (!resp.ok) return [];
-  const data: { likers: RawLiker[] } = await resp.json();
-  return (data.likers ?? []).map((l): Player => ({
-    id: l.id,
-    handle: l.handle,
-    name: l.name,
-    avatarUrl: l.avatar_url,
-    color: l.color,
   }));
 }
 

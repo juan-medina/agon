@@ -288,8 +288,6 @@ func (h *Handler) getFeed(w http.ResponseWriter, r *http.Request) {
 		Log             *string    `json:"log,omitempty"`
 		PlayedAt        string     `json:"played_at"`
 		Player          playerResp `json:"player"`
-		LikeCount       int        `json:"like_count"`
-		IsLiked         bool       `json:"is_liked"`
 	}
 
 	resp := make([]feedEntry, 0, len(journeys))
@@ -311,8 +309,6 @@ func (h *Handler) getFeed(w http.ResponseWriter, r *http.Request) {
 				AvatarURL: j.PlayerAvatarURL,
 				Color:     j.PlayerColor,
 			},
-			LikeCount: j.LikeCount,
-			IsLiked:   j.IsLiked,
 		})
 	}
 
