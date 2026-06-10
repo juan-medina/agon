@@ -22,7 +22,6 @@ type User struct {
 	AvatarURL       *string
 	Bio             *string
 	Color           string
-	IsAdmin         bool
 	HasCustomAvatar bool
 	HasCustomName   bool
 }
@@ -129,10 +128,10 @@ func UpdateAvatar(ctx context.Context, pool *pgxpool.Pool, userID, avatarURL str
 func GetUser(ctx context.Context, pool *pgxpool.Pool, id string) (User, error) {
 	var u User
 	err := pool.QueryRow(ctx, `
-		SELECT id, provider, handle, COALESCE(display_name, name), COALESCE(custom_avatar_url, avatar_url), bio, color, is_admin,
+		SELECT id, provider, handle, COALESCE(display_name, name), COALESCE(custom_avatar_url, avatar_url), bio, color,
 		       custom_avatar_url IS NOT NULL, display_name IS NOT NULL
 		FROM users WHERE id = $1
-	`, id).Scan(&u.ID, &u.Provider, &u.Handle, &u.Name, &u.AvatarURL, &u.Bio, &u.Color, &u.IsAdmin, &u.HasCustomAvatar, &u.HasCustomName)
+	`, id).Scan(&u.ID, &u.Provider, &u.Handle, &u.Name, &u.AvatarURL, &u.Bio, &u.Color, &u.HasCustomAvatar, &u.HasCustomName)
 	if err == pgx.ErrNoRows {
 		return User{}, fmt.Errorf("user not found: %s", id)
 	}
@@ -144,35 +143,14 @@ func GetUser(ctx context.Context, pool *pgxpool.Pool, id string) (User, error) {
 func GetUserByHandle(ctx context.Context, pool *pgxpool.Pool, handle string) (User, error) {
 	var u User
 	err := pool.QueryRow(ctx, `
-		SELECT id, provider, handle, COALESCE(display_name, name), COALESCE(custom_avatar_url, avatar_url), bio, color, is_admin,
+		SELECT id, provider, handle, COALESCE(display_name, name), COALESCE(custom_avatar_url, avatar_url), bio, color,
 		       custom_avatar_url IS NOT NULL, display_name IS NOT NULL
 		FROM users WHERE lower(handle) = lower($1)
-	`, handle).Scan(&u.ID, &u.Provider, &u.Handle, &u.Name, &u.AvatarURL, &u.Bio, &u.Color, &u.IsAdmin, &u.HasCustomAvatar, &u.HasCustomName)
+	`, handle).Scan(&u.ID, &u.Provider, &u.Handle, &u.Name, &u.AvatarURL, &u.Bio, &u.Color, &u.HasCustomAvatar, &u.HasCustomName)
 	if err == pgx.ErrNoRows {
 		return User{}, fmt.Errorf("user not found: %s", handle)
 	}
 	return u, err
-}
-
-// ListUsers returns all users ordered by name.
-func ListUsers(ctx context.Context, pool *pgxpool.Pool) ([]User, error) {
-	rows, err := pool.Query(ctx, `
-		SELECT id, provider, handle, COALESCE(display_name, name), COALESCE(custom_avatar_url, avatar_url), bio, color, is_admin, false, false
-		FROM users ORDER BY name
-	`)
-	if err != nil {
-		return nil, fmt.Errorf("list users: %w", err)
-	}
-	defer rows.Close()
-	var users []User
-	for rows.Next() {
-		var u User
-		if err := rows.Scan(&u.ID, &u.Provider, &u.Handle, &u.Name, &u.AvatarURL, &u.Bio, &u.Color, &u.IsAdmin, &u.HasCustomAvatar, &u.HasCustomName); err != nil {
-			return nil, fmt.Errorf("scan user: %w", err)
-		}
-		users = append(users, u)
-	}
-	return users, rows.Err()
 }
 
 // UpdateBio sets the bio for the given user ID.
@@ -213,7 +191,7 @@ func UnfollowUser(ctx context.Context, pool *pgxpool.Pool, followerID, followeeI
 // GetFollowers returns users who follow the given user ID, ordered by name.
 func GetFollowers(ctx context.Context, pool *pgxpool.Pool, userID string) ([]User, error) {
 	rows, err := pool.Query(ctx, `
-		SELECT u.id, u.provider, u.handle, COALESCE(u.display_name, u.name), COALESCE(u.custom_avatar_url, u.avatar_url), u.bio, u.color, u.is_admin, false, false
+		SELECT u.id, u.provider, u.handle, COALESCE(u.display_name, u.name), COALESCE(u.custom_avatar_url, u.avatar_url), u.bio, u.color, false, false
 		FROM users u
 		JOIN follows f ON f.follower_id = u.id
 		WHERE f.followee_id = $1
@@ -228,7 +206,7 @@ func GetFollowers(ctx context.Context, pool *pgxpool.Pool, userID string) ([]Use
 // GetFollowing returns users that the given user ID follows, ordered by name.
 func GetFollowing(ctx context.Context, pool *pgxpool.Pool, userID string) ([]User, error) {
 	rows, err := pool.Query(ctx, `
-		SELECT u.id, u.provider, u.handle, COALESCE(u.display_name, u.name), COALESCE(u.custom_avatar_url, u.avatar_url), u.bio, u.color, u.is_admin, false, false
+		SELECT u.id, u.provider, u.handle, COALESCE(u.display_name, u.name), COALESCE(u.custom_avatar_url, u.avatar_url), u.bio, u.color, false, false
 		FROM users u
 		JOIN follows f ON f.followee_id = u.id
 		WHERE f.follower_id = $1
@@ -285,7 +263,7 @@ func scanUsers(rows pgx.Rows) ([]User, error) {
 	var users []User
 	for rows.Next() {
 		var u User
-		if err := rows.Scan(&u.ID, &u.Provider, &u.Handle, &u.Name, &u.AvatarURL, &u.Bio, &u.Color, &u.IsAdmin, &u.HasCustomAvatar, &u.HasCustomName); err != nil {
+		if err := rows.Scan(&u.ID, &u.Provider, &u.Handle, &u.Name, &u.AvatarURL, &u.Bio, &u.Color, &u.HasCustomAvatar, &u.HasCustomName); err != nil {
 			return nil, fmt.Errorf("scan user: %w", err)
 		}
 		users = append(users, u)

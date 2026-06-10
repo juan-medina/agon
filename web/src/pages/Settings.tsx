@@ -1,18 +1,15 @@
 // SPDX-FileCopyrightText: 2026 Juan Medina
 // SPDX-License-Identifier: MIT
 import { useState } from "react";
-import { MonitorDown, Search, ShieldCheck } from "lucide-react";
+import { MonitorDown, Search } from "lucide-react";
 import AvatarEditor from "@/components/AvatarEditor";
 import { useNavigate, Link } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { getCurrentPlayer, signIn, signOut } from "@/services/auth";
-import { listAdminUsers, impersonateUser } from "@/services/admin";
 import { getExclusions, removeExclusion, getGameHints, removeGameHint, updateGameHint } from "@/services/settings";
 import { searchGames } from "@/services/games";
-import { avatarSrc, initials } from "@/lib/display";
 import { useLocale, SUPPORTED_LOCALES } from "@/hooks/useLocale";
-import type { Player } from "@/models/player";
 
 const LOCALE_LABEL_KEYS: Record<string, string> = {
   en: "settings_language_en",
@@ -29,11 +26,6 @@ export default function Settings() {
     queryKey: ["auth", "me"],
     queryFn: getCurrentPlayer,
     retry: false,
-  });
-  const { data: adminUsers } = useQuery({
-    queryKey: ["admin", "users"],
-    queryFn: listAdminUsers,
-    enabled: player?.isAdmin === true,
   });
   const { data: exclusions = [] } = useQuery({ queryKey: ["settings", "exclusions"], queryFn: getExclusions });
   const { data: hints = [] } = useQuery({ queryKey: ["settings", "hints"], queryFn: getGameHints });
@@ -79,11 +71,6 @@ export default function Settings() {
   const signOutMutation = useMutation({
     mutationFn: signOut,
     onSuccess: () => navigate("/login", { replace: true }),
-  });
-
-  const impersonateMutation = useMutation({
-    mutationFn: (userId: string) => impersonateUser(userId),
-    onSuccess: () => { window.location.href = "/"; },
   });
 
   if (playerLoading) return null;
@@ -134,12 +121,6 @@ export default function Settings() {
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="truncate font-semibold">{player.name}</span>
-                  {player.isAdmin && (
-                    <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-                      <ShieldCheck size={11} />
-                      {t("settings_admin_badge")}
-                    </span>
-                  )}
                 </div>
                 <div className="truncate text-sm text-muted-foreground">@{player.handle}</div>
               </div>
@@ -408,74 +389,6 @@ export default function Settings() {
 
         </div>
       </section>
-
-      {/* Admin — impersonation */}
-      {player.isAdmin && (
-        <section>
-          <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            {t("settings_admin_section")}
-          </h2>
-          <div className="rounded-lg border border-border bg-card p-5">
-            <h3 className="font-semibold">{t("settings_impersonate")}</h3>
-            <p className="mb-4 mt-1 text-sm text-muted-foreground">
-              {t("settings_impersonate_desc")}
-            </p>
-            {!adminUsers || adminUsers.length === 0 ? (
-              <p className="text-sm text-muted-foreground">{t("settings_no_users")}</p>
-            ) : (
-              <ul className="space-y-2">
-                {adminUsers
-                  .filter((u: Player) => u.id !== player.id)
-                  .map((u: Player) => (
-                    <li
-                      key={u.id}
-                      className="flex items-center justify-between rounded-md border border-border px-3 py-2"
-                    >
-                      <div className="flex min-w-0 items-center gap-3">
-                        <img
-                          src={avatarSrc(u)}
-                          alt={u.name}
-                          className="h-8 w-8 shrink-0 rounded-full object-cover"
-                          onError={(e) => {
-                            const target = e.currentTarget;
-                            target.style.display = "none";
-                            target.nextElementSibling?.removeAttribute("hidden");
-                          }}
-                        />
-                        <div
-                          hidden
-                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
-                          style={{ backgroundColor: u.color }}
-                        >
-                          {initials(u.name)}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <span className="truncate text-sm font-medium">{u.name}</span>
-                            {u.isAdmin && (
-                              <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-primary">
-                                <ShieldCheck size={10} />
-                                {t("settings_admin_badge")}
-                              </span>
-                            )}
-                          </div>
-                          <div className="truncate text-xs text-muted-foreground">@{u.handle}</div>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => impersonateMutation.mutate(u.id)}
-                        disabled={impersonateMutation.isPending}
-                        className="shrink-0 rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50"
-                      >
-                        {t("settings_impersonate_btn")}
-                      </button>
-                    </li>
-                  ))}
-              </ul>
-            )}
-          </div>
-        </section>
-      )}
     </div>
   );
 }

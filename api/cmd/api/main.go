@@ -13,7 +13,6 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/juan-medina/yurnik/internal/admin"
 	"github.com/juan-medina/yurnik/internal/agent"
 	"github.com/juan-medina/yurnik/internal/auth"
 	"github.com/juan-medina/yurnik/internal/db"
@@ -75,7 +74,6 @@ func main() {
 	journeys.NewHandler(pool, jwtPriv).Register(mux)
 	echoes.NewHandler(pool, jwtPriv).Register(mux)
 	settings.NewHandler(pool, jwtPriv).Register(mux)
-	admin.NewHandler(pool, jwtPriv).Register(mux)
 
 	log.Printf("listening on %s (frontend: %s, rate limit: %.0f rps)", addr, cfg.FrontendURL, rps)
 	if err := http.ListenAndServe(addr, cors(allowedOrigin, middleware.RateLimit(rps, mux))); err != nil {

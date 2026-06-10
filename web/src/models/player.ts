@@ -10,7 +10,6 @@ export type Player = {
   hasCustomAvatar?: boolean;
   hasCustomName?: boolean;
   bio?: string;
-  isAdmin?: boolean;
   followers?: number;
   following?: number;
   isFollowing?: boolean;
