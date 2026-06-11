@@ -58,6 +58,6 @@ describe("Echoes", () => {
     renderEchoes();
     const firstFollower = MOCK_ECHOES.find((e) => e.type === "new_follower")!;
     const links = await screen.findAllByRole("link", { name: /started following you/ });
-    expect(links[0]).toHaveAttribute("href", `/player/${firstFollower.actors[0].id}`);
+    expect(links[0]).toHaveAttribute("href", `/player/${firstFollower.actors[0].handle}`);
   });
 });

@@ -59,7 +59,7 @@ function EchoRow({ echo }: { echo: Echo }) {
   const to =
     echo.type === "new_comment"
       ? `/journey/${echo.subjectId}`
-      : `/player/${echo.actors[0]?.id}`;
+      : `/player/${echo.actors[0]?.handle}`;
 
   const actorLabel = formatActors(echo.actors, echo.actorCount, t);
 
