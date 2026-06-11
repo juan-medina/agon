@@ -44,6 +44,7 @@ type RawProfileSummary = {
   total_seconds: number;
   recent_games: { igdb_id: number; name: string; cover_url?: string; release_year?: number; last_played: string }[];
   genre_hours: { genre: string; seconds: number }[];
+  horizon: { igdb_id: number; name: string; cover_url?: string; genres: string[]; release_year?: number }[];
 };
 
 function rawToPlayerProfile(r: RawProfileSummary): PlayerProfile {
@@ -69,6 +70,13 @@ function rawToPlayerProfile(r: RawProfileSummary): PlayerProfile {
       lastPlayed: new Date(g.last_played),
     })),
     genreHours: r.genre_hours ?? [],
+    horizon: (r.horizon ?? []).map((g) => ({
+      igdbId: g.igdb_id,
+      name: g.name,
+      coverUrl: g.cover_url,
+      genres: g.genres ?? [],
+      releaseYear: g.release_year,
+    })),
   };
 }
 

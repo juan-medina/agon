@@ -17,6 +17,7 @@ Consistent terms used throughout this document, the codebase, and the UI. When i
 | **Players** | The game-centric discovery page — browse who is playing what. Not a social graph view. |
 | **Hero** | Your own profile page — confirmed journey history and stats. |
 | **Echo** | An in-app notification. Triggered by a new comment on your journey or a new follower. Batched per subject — one echo per (recipient, type, subject) accumulates actors rather than creating one row per actor. |
+| **Horizon** | A player's public list of games they intend to play in the future, shown on their Hero page. Added from a game's detail page or the Horizon page; removable only from the Horizon page. |
 | **Exclusion** | An executable the agent will never create a pending journey for. |
 
 ## What we are building

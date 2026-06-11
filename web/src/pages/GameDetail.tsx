@@ -2,19 +2,20 @@
 // SPDX-License-Identifier: MIT
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
-import { ChevronLeft, Check, UserPlus, ExternalLink, Monitor, Gamepad2, Smartphone } from "lucide-react";
+import { ChevronLeft, Check, UserPlus, ExternalLink, Monitor, Gamepad2, Smartphone, Telescope } from "lucide-react";
 import { siPlaystation, siSteam, siAndroid, siApple, siLinux } from "simple-icons";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { getGameDetail, getGameJourneys } from "@/services/games";
 import { followPlayer, unfollowPlayer } from "@/services/players";
 import { getCurrentPlayer } from "@/services/auth";
+import { addToHorizon } from "@/services/horizon";
 import { avatarSrc, playerHref } from "@/lib/display";
 import { formatJourneyDate } from "@/lib/time";
 import GenreChip from "@/components/GenreChip";
 import SignInPromptModal from "@/components/SignInPromptModal";
 import { usePageTitle } from "@/hooks/usePageTitle";
-import type { JourneyPlayer } from "@/models/game";
+import type { GameDetail as GameDetailModel, JourneyPlayer } from "@/models/game";
 
 // Renders an SVG from a simple-icons path string at a given size.
 function SiIcon({ path, size = 11 }: { path: string; size?: number }) {
@@ -198,6 +199,40 @@ function JourneyPlayerRow({ entry }: { entry: JourneyPlayer }) {
       )}
       {showSignIn && <SignInPromptModal onClose={() => setShowSignIn(false)} />}
     </div>
+  );
+}
+
+function AddToHorizonButton({ game }: { game: GameDetailModel }) {
+  const { t } = useTranslation();
+  const [inHorizon, setInHorizon] = useState(game.inHorizon);
+  const [showSignIn, setShowSignIn] = useState(false);
+  const { data: currentPlayer } = useQuery({ queryKey: ["auth", "me"], queryFn: getCurrentPlayer, retry: false });
+  const addMutation = useMutation({
+    mutationFn: () => addToHorizon(parseInt(game.id, 10)),
+    onSuccess: () => setInHorizon(true),
+  });
+
+  if (inHorizon) {
+    return (
+      <span className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground">
+        <Check size={11} />
+        {t("horizon_added")}
+      </span>
+    );
+  }
+
+  return (
+    <>
+      <button
+        onClick={() => { if (!currentPlayer) { setShowSignIn(true); return; } addMutation.mutate(); }}
+        disabled={addMutation.isPending}
+        className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-accent disabled:opacity-40"
+      >
+        <Telescope size={11} />
+        {t("horizon_add")}
+      </button>
+      {showSignIn && <SignInPromptModal onClose={() => setShowSignIn(false)} />}
+    </>
   );
 }
 
@@ -393,6 +428,7 @@ export default function GameDetail() {
 
             {/* Links */}
             <div className="mt-4 flex flex-wrap gap-2">
+              <AddToHorizonButton game={game} />
               {game.trailerId && (
                 <a
                   href={`https://www.youtube.com/watch?v=${game.trailerId}`}

@@ -269,12 +269,13 @@ type feedEntry struct {
 }
 
 type activityResp struct {
-	Type         string     `json:"type"` // "follow" | "comment"
-	CreatedAt    string     `json:"created_at"`
-	Actor        playerResp `json:"actor"`
-	Recipient    playerResp `json:"recipient"`
-	SubjectID    *string    `json:"subject_id,omitempty"`
-	SubjectTitle *string    `json:"subject_title,omitempty"`
+	Type          string     `json:"type"` // "follow" | "comment" | "horizon_add"
+	CreatedAt     string     `json:"created_at"`
+	Actor         playerResp `json:"actor"`
+	Recipient     playerResp `json:"recipient"`
+	SubjectID     *string    `json:"subject_id,omitempty"`
+	SubjectTitle  *string    `json:"subject_title,omitempty"`
+	SubjectIGDBID *int       `json:"subject_igdb_id,omitempty"`
 }
 
 type feedItem struct {
@@ -306,8 +307,11 @@ func journeyToFeedEntry(j db.JourneyWithPlayer) feedEntry {
 
 func activityToFeedEntry(a db.ActivityEvent) activityResp {
 	t := "comment"
-	if a.Type == "new_follower" {
+	switch a.Type {
+	case "new_follower":
 		t = "follow"
+	case "horizon_add":
+		t = "horizon_add"
 	}
 	return activityResp{
 		Type:      t,
@@ -326,8 +330,9 @@ func activityToFeedEntry(a db.ActivityEvent) activityResp {
 			AvatarURL: a.RecipientAvatarURL,
 			Color:     a.RecipientColor,
 		},
-		SubjectID:    a.SubjectID,
-		SubjectTitle: a.SubjectTitle,
+		SubjectID:     a.SubjectID,
+		SubjectTitle:  a.SubjectTitle,
+		SubjectIGDBID: a.SubjectIGDBID,
 	}
 }
 
@@ -505,6 +510,14 @@ type genreHoursItem struct {
 	Seconds int    `json:"seconds"`
 }
 
+type horizonItem struct {
+	IGDBID      int      `json:"igdb_id"`
+	Name        string   `json:"name"`
+	CoverURL    *string  `json:"cover_url,omitempty"`
+	Genres      []string `json:"genres"`
+	ReleaseYear *int     `json:"release_year,omitempty"`
+}
+
 type profileSummaryResponse struct {
 	ID           string           `json:"id"`
 	Handle       string           `json:"handle"`
@@ -519,9 +532,10 @@ type profileSummaryResponse struct {
 	TotalSeconds int              `json:"total_seconds"`
 	RecentGames  []recentGameItem `json:"recent_games"`
 	GenreHours   []genreHoursItem `json:"genre_hours"`
+	Horizon      []horizonItem    `json:"horizon"`
 }
 
-func buildProfileSummaryResponse(user db.User, followers, following int, isFollowing bool, summary db.ProfileSummary) profileSummaryResponse {
+func buildProfileSummaryResponse(user db.User, followers, following int, isFollowing bool, summary db.ProfileSummary, horizon []db.HorizonEntry) profileSummaryResponse {
 	resp := profileSummaryResponse{
 		ID:           user.ID,
 		Handle:       user.Handle,
@@ -536,6 +550,7 @@ func buildProfileSummaryResponse(user db.User, followers, following int, isFollo
 		TotalSeconds: summary.TotalSeconds,
 		RecentGames:  make([]recentGameItem, 0, len(summary.RecentGames)),
 		GenreHours:   make([]genreHoursItem, 0, len(summary.GenreHours)),
+		Horizon:      make([]horizonItem, 0, len(horizon)),
 	}
 	for _, g := range summary.RecentGames {
 		resp.RecentGames = append(resp.RecentGames, recentGameItem{
@@ -548,6 +563,19 @@ func buildProfileSummaryResponse(user db.User, followers, following int, isFollo
 	}
 	for _, gh := range summary.GenreHours {
 		resp.GenreHours = append(resp.GenreHours, genreHoursItem{Genre: gh.Genre, Seconds: gh.Seconds})
+	}
+	for _, e := range horizon {
+		genres := e.Genres
+		if genres == nil {
+			genres = []string{}
+		}
+		resp.Horizon = append(resp.Horizon, horizonItem{
+			IGDBID:      e.IGDBID,
+			Name:        e.Name,
+			CoverURL:    e.CoverURL,
+			Genres:      genres,
+			ReleaseYear: e.ReleaseYear,
+		})
 	}
 	return resp
 }
@@ -590,8 +618,12 @@ func (h *Handler) writeProfileSummary(w http.ResponseWriter, r *http.Request, us
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
+	horizonEntries, err := db.ListHorizonEntries(r.Context(), h.pool, userID)
+	if err != nil {
+		log.Printf("profile/summary: horizon %s: %v", userID, err)
+	}
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(buildProfileSummaryResponse(user, followers, following, isFollowing, summary))
+	_ = json.NewEncoder(w).Encode(buildProfileSummaryResponse(user, followers, following, isFollowing, summary, horizonEntries))
 }
 
 func (h *Handler) patchMe(w http.ResponseWriter, r *http.Request) {

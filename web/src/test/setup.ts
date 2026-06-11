@@ -12,6 +12,7 @@ import {
   MOCK_FOLLOW_LISTS,
   GAME_LIBRARY,
   MOCK_PENDING_JOURNEYS,
+  MOCK_HORIZON,
 } from "@/test/fixtures";
 import type { Player } from "@/models/player";
 
@@ -35,6 +36,16 @@ function toRawPlayer(p: Player) {
   };
 }
 
+function toRawHorizonEntry(g: (typeof MOCK_HORIZON)[number]) {
+  return {
+    igdb_id: g.igdbId,
+    name: g.name,
+    cover_url: g.coverUrl ?? null,
+    genres: g.genres,
+    release_year: g.releaseYear ?? null,
+  };
+}
+
 function makeDefaultFetch() {
   // Mutable follow state for this test. Initially set from MY_FOLLOWING.
   const followState: Record<string, boolean> = {};
@@ -42,6 +53,11 @@ function makeDefaultFetch() {
 
   // Mutable pending journeys state for this test.
   const pendingJourneys = [...MOCK_PENDING_JOURNEYS];
+
+  // Mutable horizon state for this test. Only MY_PLAYER starts with entries.
+  const horizonState: Record<string, (typeof MOCK_HORIZON)[number][]> = {
+    [MY_PLAYER.id]: [...MOCK_HORIZON],
+  };
 
   return vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = input.toString();
@@ -81,6 +97,7 @@ function makeDefaultFetch() {
             last_played: j.playedAt.toISOString(),
           })),
           genre_hours: [...genreMap.entries()].map(([genre, seconds]) => ({ genre, seconds })),
+          horizon: (horizonState[MY_PLAYER.id] ?? []).map(toRawHorizonEntry),
         }),
         { status: 200, headers: { "Content-Type": "application/json" } },
       );
@@ -290,9 +307,35 @@ function makeDefaultFetch() {
             last_played: j.playedAt.toISOString(),
           })),
           genre_hours: [...genreMap.entries()].map(([genre, seconds]) => ({ genre, seconds })),
+          horizon: (horizonState[pid] ?? []).map(toRawHorizonEntry),
         }),
         { status: 200, headers: { "Content-Type": "application/json" } },
       );
+    }
+
+    // GET /api/players/:handle/horizon
+    const horizonMatch = url.match(/\/api\/players\/([^/]+)\/horizon$/);
+    if (horizonMatch && method === "GET") {
+      const target = resolvePlayer(horizonMatch[1]);
+      const entries = (target && horizonState[target.id]) ?? [];
+      return new Response(
+        JSON.stringify({ entries: entries.map(toRawHorizonEntry) }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
+    }
+
+    // POST /api/me/horizon
+    if (url.endsWith("/api/me/horizon") && method === "POST") {
+      return new Response(null, { status: 204 });
+    }
+
+    // DELETE /api/me/horizon/:igdbId
+    const removeHorizonMatch = url.match(/\/api\/me\/horizon\/(\d+)$/);
+    if (removeHorizonMatch && method === "DELETE") {
+      const igdbId = Number(removeHorizonMatch[1]);
+      const entries = horizonState[MY_PLAYER.id] ?? [];
+      horizonState[MY_PLAYER.id] = entries.filter((e) => e.igdbId !== igdbId);
+      return new Response(null, { status: 204 });
     }
 
     // GET /api/players/:handle

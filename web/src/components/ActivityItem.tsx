@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Juan Medina
 // SPDX-License-Identifier: MIT
 import { Link } from "react-router";
-import { MessageSquare, UserPlus } from "lucide-react";
+import { MessageSquare, Telescope, UserPlus } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { avatarSrc, playerHref } from "@/lib/display";
 import { formatCommentAge } from "@/lib/time";
@@ -14,30 +14,40 @@ interface ActivityItemProps {
 
 export default function ActivityItem({ activity, viewerId }: ActivityItemProps) {
   const { t } = useTranslation();
-  const { type, actor, recipient, subjectId, subjectTitle, createdAt } = activity;
+  const { type, actor, recipient, subjectId, subjectTitle, subjectIgdbId, createdAt } = activity;
   const aboutViewer = recipient.id === viewerId;
   const viewerIsActor = actor.id === viewerId;
   const isSelfComment = type === "comment" && actor.id === recipient.id;
 
   const to =
-    type === "comment" ? `/journey/${subjectId}` : playerHref(aboutViewer ? actor : recipient);
-  const icon = type === "comment" ? <MessageSquare size={13} /> : <UserPlus size={13} />;
+    type === "comment" ? `/journey/${subjectId}` :
+    type === "horizon_add" ? `/game/${subjectIgdbId}` :
+    playerHref(aboutViewer ? actor : recipient);
+  const icon =
+    type === "comment" ? <MessageSquare size={13} /> :
+    type === "horizon_add" ? <Telescope size={13} /> :
+    <UserPlus size={13} />;
 
-  const text = isSelfComment
-    ? viewerIsActor
-      ? t("realm_activity_commented_own_you", { game: subjectTitle })
-      : t("realm_activity_commented_own", { game: subjectTitle })
-    : aboutViewer
-      ? type === "comment"
-        ? t("realm_activity_commented_you", { game: subjectTitle })
-        : t("realm_activity_followed_you")
-      : viewerIsActor
-        ? type === "comment"
-          ? t("realm_activity_commented_by_you", { recipient: recipient.name, game: subjectTitle })
-          : t("realm_activity_followed_by_you", { recipient: recipient.name })
-        : type === "comment"
-          ? t("realm_activity_commented", { recipient: recipient.name, game: subjectTitle })
-          : t("realm_activity_followed", { recipient: recipient.name });
+  const text =
+    type === "horizon_add"
+      ? viewerIsActor
+        ? t("realm_activity_horizon_added_you", { game: subjectTitle })
+        : t("realm_activity_horizon_added", { game: subjectTitle })
+      : isSelfComment
+        ? viewerIsActor
+          ? t("realm_activity_commented_own_you", { game: subjectTitle })
+          : t("realm_activity_commented_own", { game: subjectTitle })
+        : aboutViewer
+          ? type === "comment"
+            ? t("realm_activity_commented_you", { game: subjectTitle })
+            : t("realm_activity_followed_you")
+          : viewerIsActor
+            ? type === "comment"
+              ? t("realm_activity_commented_by_you", { recipient: recipient.name, game: subjectTitle })
+              : t("realm_activity_followed_by_you", { recipient: recipient.name })
+            : type === "comment"
+              ? t("realm_activity_commented", { recipient: recipient.name, game: subjectTitle })
+              : t("realm_activity_followed", { recipient: recipient.name });
 
   return (
     <Link

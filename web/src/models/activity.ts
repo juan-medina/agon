@@ -3,7 +3,7 @@
 
 import type { Player } from "./player";
 
-export type ActivityType = "follow" | "comment";
+export type ActivityType = "follow" | "comment" | "horizon_add";
 
 export type Activity = {
   type: ActivityType;
@@ -12,4 +12,5 @@ export type Activity = {
   recipient: Player;
   subjectId?: string;
   subjectTitle?: string;
+  subjectIgdbId?: number;
 };

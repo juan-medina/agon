@@ -50,7 +50,8 @@ export default function ProfileView({
   const { t } = useTranslation();
   const [followList, setFollowList] = useState<{ title: string; players: Player[] } | null>(null);
 
-  const { player, journeyCount, totalSeconds, recentGames, genreHours } = profile;
+  const { player, journeyCount, totalSeconds, recentGames, genreHours, horizon } = profile;
+  const isOwnProfile = player.id === viewerId;
   const maxGenreSeconds = genreHours[0]?.seconds ?? 1;
 
   return (
@@ -188,6 +189,47 @@ export default function ProfileView({
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Horizon */}
+      {(horizon.length > 0 || isOwnProfile) && (
+        <div className="mb-6">
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+            {t("profile_horizon")}
+          </h2>
+          {horizon.length > 0 ? (
+            <div className="grid grid-cols-3 gap-3 sm:grid-cols-5">
+              {horizon.map((g) => (
+                <Link key={g.igdbId} to={`/game/${g.igdbId}`} className="group block">
+                  {g.coverUrl ? (
+                    <img
+                      src={g.coverUrl}
+                      alt={g.name}
+                      className="mb-2 aspect-[3/4] w-full rounded-md object-cover transition-opacity group-hover:opacity-80"
+                    />
+                  ) : (
+                    <div className="mb-2 flex aspect-[3/4] w-full items-center justify-center rounded-md bg-muted transition-opacity group-hover:opacity-80">
+                      <span className="px-1 text-center text-xs text-muted-foreground">{g.name}</span>
+                    </div>
+                  )}
+                  <p className="truncate text-xs font-medium group-hover:underline" title={g.name}>
+                    {g.name}
+                  </p>
+                  {g.releaseYear && (
+                    <p className="text-xs text-muted-foreground">{g.releaseYear}</p>
+                  )}
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-lg border border-border bg-card px-4 py-6 text-center text-sm text-muted-foreground">
+              {t("profile_horizon_empty_you")}{" "}
+              <Link to="/horizon" className="text-primary underline-offset-2 hover:underline">
+                {t("nav_horizon")}
+              </Link>
+            </div>
+          )}
         </div>
       )}
 

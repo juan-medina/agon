@@ -3,7 +3,7 @@
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router";
-import { MOCK_FRIENDS_ON_JOURNEY, MY_PLAYER, MY_PLAYER_ID, PLAYERS, JOURNEYS } from "@/test/fixtures";
+import { MOCK_FRIENDS_ON_JOURNEY, MOCK_HORIZON, MY_PLAYER, MY_PLAYER_ID, PLAYERS, JOURNEYS } from "@/test/fixtures";
 import { _reset as resetPlayers } from "@/services/players";
 import { renderWithProviders } from "@/test/utils";
 import PlayerProfile from "./PlayerProfile";
@@ -87,5 +87,17 @@ describe("PlayerProfile", () => {
     renderProfile(PLAYERS[1].handle);
     await user.click(await screen.findByRole("button", { name: /Following/ }));
     expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
+  });
+
+  it("shows the Horizon section with entries on your own profile", async () => {
+    renderProfile(MY_PLAYER.handle);
+    expect(await screen.findByText("Horizon")).toBeInTheDocument();
+    expect(await screen.findByText(MOCK_HORIZON[0].name)).toBeInTheDocument();
+  });
+
+  it("does not show the Horizon section on another player's profile with an empty horizon", async () => {
+    renderProfile(PLAYERS[1].handle);
+    await screen.findByText(PLAYERS[1].name);
+    expect(screen.queryByText("Horizon")).not.toBeInTheDocument();
   });
 });

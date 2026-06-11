@@ -28,10 +28,19 @@ export type GenreHours = {
   seconds: number;
 };
 
+export type HorizonEntry = {
+  igdbId: number;
+  name: string;
+  coverUrl?: string;
+  genres: string[];
+  releaseYear?: number;
+};
+
 export type PlayerProfile = {
   player: Player;
   journeyCount: number;
   totalSeconds: number;
   recentGames: RecentGame[];
   genreHours: GenreHours[];
+  horizon: HorizonEntry[];
 };

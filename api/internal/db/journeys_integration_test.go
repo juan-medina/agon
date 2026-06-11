@@ -79,16 +79,32 @@ CREATE TABLE IF NOT EXISTS follows (
 );
 
 CREATE TABLE IF NOT EXISTS activity_events (
-    id            bigint      PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
-    actor_id      uuid        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    target_id     uuid        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    type          text        NOT NULL CHECK (type IN ('new_comment', 'new_follower')),
-    subject_id    uuid        REFERENCES journeys(id) ON DELETE SET NULL,
-    subject_title text,
-    created_at    timestamptz NOT NULL DEFAULT now()
+    id              bigint      PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+    actor_id        uuid        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    target_id       uuid        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    type            text        NOT NULL CHECK (type IN ('new_comment', 'new_follower')),
+    subject_id      uuid        REFERENCES journeys(id) ON DELETE SET NULL,
+    subject_title   text,
+    subject_igdb_id integer     REFERENCES igdb_games(igdb_id),
+    created_at      timestamptz NOT NULL DEFAULT now()
 );
 
 CREATE INDEX IF NOT EXISTS activity_events_actor_id_created_at_idx ON activity_events(actor_id, created_at DESC);
+
+ALTER TABLE activity_events ADD COLUMN IF NOT EXISTS subject_igdb_id integer REFERENCES igdb_games(igdb_id);
+ALTER TABLE activity_events DROP CONSTRAINT IF EXISTS activity_events_type_check;
+ALTER TABLE activity_events ADD CONSTRAINT activity_events_type_check
+    CHECK (type IN ('new_comment', 'new_follower', 'horizon_add'));
+
+CREATE TABLE IF NOT EXISTS horizon_entries (
+    id        bigint      PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+    player_id uuid        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    igdb_id   integer     NOT NULL REFERENCES igdb_games(igdb_id),
+    added_at  timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (player_id, igdb_id)
+);
+
+CREATE INDEX IF NOT EXISTS horizon_entries_player_id_added_at_idx ON horizon_entries (player_id, added_at DESC);
 `
 
 func connectTestDB(t *testing.T) *pgxpool.Pool {

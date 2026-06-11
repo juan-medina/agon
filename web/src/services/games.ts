@@ -28,7 +28,7 @@ export async function getGameDetail(igdbId: string): Promise<GameDetail | undefi
     id: string; name: string; cover_url?: string; genres: string[]; release_year?: number;
     platforms: string[]; developer?: string; publisher?: string; summary?: string;
     screenshots: string[]; trailer_id?: string; store_links?: Record<string, string>;
-    aggregated_rating?: number; rating?: number;
+    aggregated_rating?: number; rating?: number; in_horizon?: boolean;
   } = await resp.json();
   return {
     id: g.id,
@@ -45,6 +45,7 @@ export async function getGameDetail(igdbId: string): Promise<GameDetail | undefi
     storeLinks: g.store_links ?? {},
     aggregatedRating: g.aggregated_rating,
     rating: g.rating,
+    inHorizon: g.in_horizon ?? false,
   };
 }
 

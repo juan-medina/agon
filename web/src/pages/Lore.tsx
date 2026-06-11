@@ -12,6 +12,7 @@ import {
   Monitor,
   CheckCircle2,
   ArrowDown,
+  Telescope,
 } from "lucide-react";
 
 function GitHubIcon({ size = 13 }: { size?: number }) {
@@ -152,6 +153,11 @@ function LoreContent({ authenticated }: { authenticated: boolean }) {
               icon={<Monitor size={18} />}
               title={t("lore_feature_agent_title")}
               body={t("lore_feature_agent_body")}
+            />
+            <FeatureCard
+              icon={<Telescope size={18} />}
+              title={t("lore_feature_horizon_title")}
+              body={t("lore_feature_horizon_body")}
             />
           </div>
         </div>

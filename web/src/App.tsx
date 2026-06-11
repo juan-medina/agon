@@ -12,6 +12,7 @@ import GameDetail from "@/pages/GameDetail";
 import PlayerProfile from "@/pages/PlayerProfile";
 import Settings from "@/pages/Settings";
 import Hero from "@/pages/Hero";
+import Horizon from "@/pages/Horizon";
 import AgentAuth from "@/pages/AgentAuth";
 import Lore from "@/pages/Lore";
 import NotFound from "@/pages/NotFound";
@@ -32,6 +33,7 @@ const router = createBrowserRouter([
       { path: "echoes", element: <Echoes /> },
       { path: "settings", element: <Settings /> },
       { path: "hero", element: <Hero /> },
+      { path: "horizon", element: <Horizon /> },
       { path: "*", element: <NotFound /> },
     ],
   },

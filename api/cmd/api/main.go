@@ -18,6 +18,7 @@ import (
 	"github.com/juan-medina/yurnik/internal/db"
 	"github.com/juan-medina/yurnik/internal/echoes"
 	"github.com/juan-medina/yurnik/internal/games"
+	"github.com/juan-medina/yurnik/internal/horizon"
 	"github.com/juan-medina/yurnik/internal/journeys"
 	"github.com/juan-medina/yurnik/internal/middleware"
 	"github.com/juan-medina/yurnik/internal/profile"
@@ -73,6 +74,7 @@ func main() {
 	games.NewHandler(igdbClient, pool, jwtPriv).Register(mux)
 	journeys.NewHandler(pool, jwtPriv).Register(mux)
 	echoes.NewHandler(pool, jwtPriv).Register(mux)
+	horizon.NewHandler(pool, jwtPriv).Register(mux)
 	settings.NewHandler(pool, jwtPriv).Register(mux)
 
 	log.Printf("listening on %s (frontend: %s, rate limit: %.0f rps)", addr, cfg.FrontendURL, rps)

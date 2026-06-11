@@ -4,6 +4,7 @@
   "nav_players": "Players",
   "nav_echoes": "Echoes",
   "nav_hero": "Hero",
+  "nav_horizon": "Horizon",
   "nav_settings": "Settings",
 
   "topbar_menu": "Open navigation menu",
@@ -32,6 +33,8 @@
   "lore_feature_players_body": "Browse recent sessions by game. Find out who's playing what and follow players whose journeys you want in your Realm.",
   "lore_feature_agent_title": "Windows agent",
   "lore_feature_agent_body": "Install the optional tray agent and your sessions are detected automatically. Just play, then confirm.",
+  "lore_feature_horizon_title": "Horizon",
+  "lore_feature_horizon_body": "Keep a public list of games you intend to play next. Add them from a game page or your Horizon, and share what's coming up.",
   "lore_open_title": "Built for players, owned by players",
   "lore_open_point_1_title": "Log in with Discord",
   "lore_open_point_1_sub": "No new passwords",
@@ -138,6 +141,8 @@
   "realm_activity_commented_by_you": "You commented on {{recipient}}'s {{game}} journey",
   "realm_activity_commented_own_you": "You commented on your own {{game}} journey",
   "realm_activity_commented_own": "commented on their own {{game}} journey",
+  "realm_activity_horizon_added_you": "You added {{game}} to your horizon",
+  "realm_activity_horizon_added": "added {{game}} to their horizon",
 
   "profile_not_found": "Player not found.",
   "profile_back": "Back",
@@ -155,6 +160,8 @@
   "profile_no_activity": "No activity yet.",
   "profile_followers_modal": "Followers",
   "profile_following_modal": "Following",
+  "profile_horizon": "Horizon",
+  "profile_horizon_empty_you": "Nothing on your horizon yet. Add games you intend to play from",
 
   "journey_not_found": "Journey not found.",
   "journey_back": "Back",
@@ -187,6 +194,12 @@
   "journey_others_section": "Others",
   "journey_no_others": "No one else on this journey yet.",
   "journey_you": "You",
+
+  "horizon_title": "Horizon",
+  "horizon_empty": "This is the place for your future journeys.",
+  "horizon_add": "Add to horizon",
+  "horizon_added": "In horizon",
+  "horizon_remove": "Remove from horizon",
 
   "game_search_placeholder": "Search for a game…",
   "game_no_results": "No games found for “{{query}}”",

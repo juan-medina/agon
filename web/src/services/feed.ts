@@ -27,12 +27,13 @@ type RawJourneyEntry = {
 };
 
 type RawActivityEntry = {
-  type: "follow" | "comment";
+  type: "follow" | "comment" | "horizon_add";
   created_at: string;
   actor: RawPlayer;
   recipient: RawPlayer;
   subject_id?: string;
   subject_title?: string;
+  subject_igdb_id?: number;
 };
 
 type RawFeedItem =
@@ -61,6 +62,7 @@ function toFeedItem(item: RawFeedItem): FeedItem {
         recipient: toPlayer(a.recipient),
         subjectId: a.subject_id,
         subjectTitle: a.subject_title,
+        subjectIgdbId: a.subject_igdb_id,
       },
     };
   }

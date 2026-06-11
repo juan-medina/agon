@@ -27,6 +27,7 @@ export type GameDetail = {
   storeLinks: Record<string, string>;
   aggregatedRating?: number;
   rating?: number;
+  inHorizon: boolean;
 };
 
 export type JourneyEntry = {

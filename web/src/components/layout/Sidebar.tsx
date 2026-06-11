@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Juan Medina
 // SPDX-License-Identifier: MIT
 import { NavLink } from "react-router";
-import { Bell, Globe2, ScrollText, Settings, Shield, Users } from "lucide-react";
+import { Bell, Globe2, ScrollText, Settings, Shield, Telescope, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -26,6 +26,7 @@ export default function Sidebar({ isOpen = false, onClose = () => {} }: SidebarP
     { to: "/journeys", labelKey: "nav_journeys", icon: ScrollText },
     { to: "/players", labelKey: "nav_players", icon: Users },
     { to: "/echoes", labelKey: "nav_echoes", icon: Bell },
+    { to: "/horizon", labelKey: "nav_horizon", icon: Telescope },
     { to: currentPlayer ? `/player/${currentPlayer.handle}` : "/hero", labelKey: "nav_hero", icon: Shield },
     { to: "/settings", labelKey: "nav_settings", icon: Settings },
   ];

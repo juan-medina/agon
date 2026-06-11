@@ -156,4 +156,39 @@ describe("ActivityItem", () => {
     expect(screen.getByText(/commented on their own Elden Ring journey/i)).toBeInTheDocument();
     expect(screen.getByRole("link")).toHaveAttribute("href", "/journey/j99");
   });
+
+  it("renders 'You added <game> to your horizon' when the viewer is the actor", () => {
+    const activity: Activity = {
+      type: "horizon_add",
+      createdAt: new Date("2026-06-01T12:00:00Z"),
+      actor: PLAYERS[0],
+      recipient: PLAYERS[0],
+      subjectIgdbId: 1234,
+      subjectTitle: "Elden Ring",
+    };
+    render(
+      <MemoryRouter>
+        <ActivityItem activity={activity} viewerId={PLAYERS[0].id} />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText(/You added Elden Ring to your horizon/i)).toBeInTheDocument();
+    expect(screen.getByRole("link")).toHaveAttribute("href", "/game/1234");
+  });
+
+  it("renders '<actor> added <game> to their horizon' when viewing another player's horizon addition", () => {
+    const activity: Activity = {
+      type: "horizon_add",
+      createdAt: new Date("2026-06-01T12:00:00Z"),
+      actor: PLAYERS[0],
+      recipient: PLAYERS[0],
+      subjectIgdbId: 1234,
+      subjectTitle: "Elden Ring",
+    };
+    renderActivity(activity);
+
+    expect(screen.getByText(PLAYERS[0].name, { exact: false })).toBeInTheDocument();
+    expect(screen.getByText(/added Elden Ring to their horizon/i)).toBeInTheDocument();
+    expect(screen.getByRole("link")).toHaveAttribute("href", "/game/1234");
+  });
 });

@@ -53,7 +53,7 @@ type noopResponseWriter struct{}
 
 func (noopResponseWriter) Header() http.Header         { return http.Header{} }
 func (noopResponseWriter) Write(b []byte) (int, error) { return len(b), nil }
-func (noopResponseWriter) WriteHeader(int)              {}
+func (noopResponseWriter) WriteHeader(int)             {}
 
 func (h *Handler) detail(w http.ResponseWriter, r *http.Request) {
 	igdbID, err := strconv.Atoi(r.PathValue("igdbId"))
@@ -124,11 +124,20 @@ func (h *Handler) detail(w http.ResponseWriter, r *http.Request) {
 		StoreLinks       map[string]string `json:"store_links,omitempty"`
 		AggregatedRating *float64          `json:"aggregated_rating,omitempty"`
 		Rating           *float64          `json:"rating,omitempty"`
+		InHorizon        bool              `json:"in_horizon"`
 	}
 
 	var coverURL *string
 	if basic.CoverURL != "" {
 		coverURL = &basic.CoverURL
+	}
+
+	var inHorizon bool
+	if userID, ok := h.tryAuthenticate(r); ok {
+		inHorizon, err = db.IsInHorizon(r.Context(), h.pool, userID, igdbID)
+		if err != nil {
+			log.Printf("games/detail: in_horizon %d: %v", igdbID, err)
+		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -148,6 +157,7 @@ func (h *Handler) detail(w http.ResponseWriter, r *http.Request) {
 		StoreLinks:       detail.StoreLinks,
 		AggregatedRating: detail.AggregatedRating,
 		Rating:           detail.Rating,
+		InHorizon:        inHorizon,
 	})
 }
 

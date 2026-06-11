@@ -8,7 +8,7 @@ import { _reset as resetPlayers } from "@/services/players";
 import { renderWithProviders } from "@/test/utils";
 import GameDetail from "./GameDetail";
 
-function gameDetailResponse(withTrailer: boolean, withStoreLinks: boolean) {
+function gameDetailResponse(withTrailer: boolean, withStoreLinks: boolean, inHorizon = false) {
   return JSON.stringify({
     id: MOCK_GAME_DETAIL.id,
     name: MOCK_GAME_DETAIL.name,
@@ -22,6 +22,7 @@ function gameDetailResponse(withTrailer: boolean, withStoreLinks: boolean) {
     screenshots: MOCK_GAME_DETAIL.screenshots,
     trailer_id: withTrailer ? MOCK_GAME_DETAIL.trailerId : undefined,
     store_links: withStoreLinks ? MOCK_GAME_DETAIL.storeLinks : {},
+    in_horizon: inHorizon,
   });
 }
 
@@ -45,13 +46,14 @@ function journeyPlayersResponse(withFollowing: boolean) {
   });
 }
 
-function makeFetch({ withTrailer = true, withStoreLinks = true, withFollowing = true, notFound = false } = {}) {
+function makeFetch({ withTrailer = true, withStoreLinks = true, withFollowing = true, notFound = false, inHorizon = false, anonymous = false } = {}) {
   return vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = input.toString();
     const method = init?.method ?? "GET";
     const json = (body: string) => new Response(body, { status: 200, headers: { "Content-Type": "application/json" } });
 
     if (url.endsWith("/api/me")) {
+      if (anonymous) return new Response("unauthorized", { status: 401 });
       return json(JSON.stringify({ id: "me", handle: "tester", name: "Tester", color: "#ff0000" }));
     }
     if (url.includes("/api/players/") && url.endsWith("/follow") && method === "POST") {
@@ -60,12 +62,15 @@ function makeFetch({ withTrailer = true, withStoreLinks = true, withFollowing = 
     if (url.includes("/api/players/") && url.endsWith("/follow") && method === "DELETE") {
       return new Response(null, { status: 204 });
     }
+    if (url.endsWith("/api/me/horizon") && method === "POST") {
+      return new Response(null, { status: 204 });
+    }
     if (/\/api\/games\/\d+\/journeys/.test(url)) {
       return json(journeyPlayersResponse(withFollowing));
     }
     if (/\/api\/games\/\d+$/.test(url)) {
       if (notFound) return new Response("not found", { status: 404 });
-      return json(gameDetailResponse(withTrailer, withStoreLinks));
+      return json(gameDetailResponse(withTrailer, withStoreLinks, inHorizon));
     }
     return new Response("not found", { status: 404 });
   });
@@ -147,5 +152,36 @@ describe("GameDetail", () => {
     await waitFor(() =>
       expect(screen.getAllByRole("button", { name: "Follow" })).toHaveLength(followButtons.length - 1),
     );
+  });
+
+  it("shows an Add to horizon button when the game is not in the player's horizon", async () => {
+    renderGame("1");
+    expect(await screen.findByRole("button", { name: /Add to horizon/i })).toBeInTheDocument();
+  });
+
+  it("shows an In horizon indicator when the game is already in the player's horizon", async () => {
+    vi.stubGlobal("fetch", makeFetch({ inHorizon: true }));
+    renderGame("1");
+    await screen.findByRole("heading", { name: /Elden Ring/ });
+    expect(screen.getByText(/In horizon/i)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Add to horizon/i })).not.toBeInTheDocument();
+  });
+
+  it("clicking Add to horizon switches to the In horizon indicator", async () => {
+    const user = userEvent.setup();
+    renderGame("1");
+    const addButton = await screen.findByRole("button", { name: /Add to horizon/i });
+    await user.click(addButton);
+    expect(await screen.findByText(/In horizon/i)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Add to horizon/i })).not.toBeInTheDocument();
+  });
+
+  it("clicking Add to horizon as an anonymous user shows a sign-in prompt", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal("fetch", makeFetch({ anonymous: true }));
+    renderGame("1");
+    const addButton = await screen.findByRole("button", { name: /Add to horizon/i });
+    await user.click(addButton);
+    expect(await screen.findByRole("button", { name: /sign in/i })).toBeInTheDocument();
   });
 });

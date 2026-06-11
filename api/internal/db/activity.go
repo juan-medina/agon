@@ -11,13 +11,15 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// ActivityEvent is a "X followed Y" or "X commented on Y's <game> journey" event,
-// where X (the actor) is followed by the viewer.
+// ActivityEvent is a "X followed Y", "X commented on Y's <game> journey", or
+// "X added <game> to their Horizon" event, where X (the actor) is followed by
+// the viewer.
 type ActivityEvent struct {
-	Type         string // "new_comment" | "new_follower"
-	SubjectID    *string
-	SubjectTitle *string
-	CreatedAt    time.Time
+	Type          string // "new_comment" | "new_follower" | "horizon_add"
+	SubjectID     *string
+	SubjectTitle  *string
+	SubjectIGDBID *int
+	CreatedAt     time.Time
 
 	ActorID        string
 	ActorHandle    string
@@ -46,13 +48,28 @@ func RecordActivity(ctx context.Context, pool *pgxpool.Pool, actorID, targetID, 
 	return nil
 }
 
+// RecordHorizonAdd inserts a horizon_add row into activity_events for the
+// Realm/Hero activity feeds. The actor and target are the same player —
+// adding a game to your Horizon is self-directed and never generates an
+// Echo notification.
+func RecordHorizonAdd(ctx context.Context, pool *pgxpool.Pool, actorID string, igdbID int, gameName string) error {
+	_, err := pool.Exec(ctx, `
+		INSERT INTO activity_events (actor_id, target_id, type, subject_igdb_id, subject_title)
+		VALUES ($1, $1, 'horizon_add', $2, $3)
+	`, actorID, igdbID, gameName)
+	if err != nil {
+		return fmt.Errorf("record horizon add: %w", err)
+	}
+	return nil
+}
+
 // GetFollowingActivity returns follow/comment events performed by users that
 // userID follows, ordered by created_at descending with optional cursor
 // pagination. Activity for journeys that have since been deleted (subject_id
 // is NULL for new_comment) is omitted.
 func GetFollowingActivity(ctx context.Context, pool *pgxpool.Pool, userID string, limit int, cursor string) ([]ActivityEvent, error) {
 	const cols = `
-		ae.type, ae.subject_id, ae.subject_title, ae.created_at,
+		ae.type, ae.subject_id, ae.subject_title, ae.subject_igdb_id, ae.created_at,
 		a.id, a.handle, COALESCE(a.display_name, a.name), COALESCE(a.custom_avatar_url, a.avatar_url), a.color,
 		t.id, t.handle, COALESCE(t.display_name, t.name), COALESCE(t.custom_avatar_url, t.avatar_url), t.color`
 
@@ -91,7 +108,7 @@ func GetFollowingActivity(ctx context.Context, pool *pgxpool.Pool, userID string
 	for rows.Next() {
 		var e ActivityEvent
 		if err := rows.Scan(
-			&e.Type, &e.SubjectID, &e.SubjectTitle, &e.CreatedAt,
+			&e.Type, &e.SubjectID, &e.SubjectTitle, &e.SubjectIGDBID, &e.CreatedAt,
 			&e.ActorID, &e.ActorHandle, &e.ActorName, &e.ActorAvatarURL, &e.ActorColor,
 			&e.RecipientID, &e.RecipientHandle, &e.RecipientName, &e.RecipientAvatarURL, &e.RecipientColor,
 		); err != nil {
@@ -111,7 +128,7 @@ func GetFollowingActivity(ctx context.Context, pool *pgxpool.Pool, userID string
 // deleted (subject_id is NULL for new_comment) is omitted.
 func GetUserActivity(ctx context.Context, pool *pgxpool.Pool, userID string, limit int, cursor string) ([]ActivityEvent, error) {
 	const cols = `
-		ae.type, ae.subject_id, ae.subject_title, ae.created_at,
+		ae.type, ae.subject_id, ae.subject_title, ae.subject_igdb_id, ae.created_at,
 		a.id, a.handle, COALESCE(a.display_name, a.name), COALESCE(a.custom_avatar_url, a.avatar_url), a.color,
 		t.id, t.handle, COALESCE(t.display_name, t.name), COALESCE(t.custom_avatar_url, t.avatar_url), t.color`
 
@@ -148,7 +165,7 @@ func GetUserActivity(ctx context.Context, pool *pgxpool.Pool, userID string, lim
 	for rows.Next() {
 		var e ActivityEvent
 		if err := rows.Scan(
-			&e.Type, &e.SubjectID, &e.SubjectTitle, &e.CreatedAt,
+			&e.Type, &e.SubjectID, &e.SubjectTitle, &e.SubjectIGDBID, &e.CreatedAt,
 			&e.ActorID, &e.ActorHandle, &e.ActorName, &e.ActorAvatarURL, &e.ActorColor,
 			&e.RecipientID, &e.RecipientHandle, &e.RecipientName, &e.RecipientAvatarURL, &e.RecipientColor,
 		); err != nil {
