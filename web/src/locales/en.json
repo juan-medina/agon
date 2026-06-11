@@ -127,8 +127,6 @@
   "hero_save": "Save",
   "hero_cancel": "Cancel",
   "hero_edit_bio": "Edit bio",
-  "hero_section_journeys": "Your journeys",
-
   "realm_quiet": "Your realm is quiet.",
   "realm_follow_hint": "Follow some players to see their journeys here.",
   "realm_discover": "Discover players",
@@ -136,6 +134,8 @@
   "realm_activity_commented": "commented on {{recipient}}'s {{game}} journey",
   "realm_activity_followed_you": "started following you",
   "realm_activity_commented_you": "commented on your {{game}} journey",
+  "realm_activity_followed_by_you": "You started following {{recipient}}",
+  "realm_activity_commented_by_you": "You commented on {{recipient}}'s {{game}} journey",
 
   "profile_not_found": "Player not found.",
   "profile_back": "Back",
@@ -148,7 +148,9 @@
   "profile_stat_following": "Following",
   "profile_recent_games": "Recent Games",
   "profile_genres": "Genres",
-  "profile_no_journeys": "No journeys yet.",
+  "profile_section_activity_you": "Your activity",
+  "profile_section_activity": "{{name}}'s activity",
+  "profile_no_activity": "No activity yet.",
   "profile_followers_modal": "Followers",
   "profile_following_modal": "Following",
 

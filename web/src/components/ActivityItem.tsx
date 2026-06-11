@@ -16,6 +16,7 @@ export default function ActivityItem({ activity, viewerId }: ActivityItemProps) 
   const { t } = useTranslation();
   const { type, actor, recipient, subjectId, subjectTitle, createdAt } = activity;
   const aboutViewer = recipient.id === viewerId;
+  const viewerIsActor = actor.id === viewerId;
 
   const to =
     type === "comment" ? `/journey/${subjectId}` : playerHref(aboutViewer ? actor : recipient);
@@ -25,9 +26,13 @@ export default function ActivityItem({ activity, viewerId }: ActivityItemProps) 
     ? type === "comment"
       ? t("realm_activity_commented_you", { game: subjectTitle })
       : t("realm_activity_followed_you")
-    : type === "comment"
-      ? t("realm_activity_commented", { recipient: recipient.name, game: subjectTitle })
-      : t("realm_activity_followed", { recipient: recipient.name });
+    : viewerIsActor
+      ? type === "comment"
+        ? t("realm_activity_commented_by_you", { recipient: recipient.name, game: subjectTitle })
+        : t("realm_activity_followed_by_you", { recipient: recipient.name })
+      : type === "comment"
+        ? t("realm_activity_commented", { recipient: recipient.name, game: subjectTitle })
+        : t("realm_activity_followed", { recipient: recipient.name });
 
   return (
     <Link
@@ -44,7 +49,11 @@ export default function ActivityItem({ activity, viewerId }: ActivityItemProps) 
       />
       <div className="min-w-0 flex-1">
         <p className="text-sm">
-          <span className="font-semibold">{actor.name}</span> {text}
+          {viewerIsActor ? text : (
+            <>
+              <span className="font-semibold">{actor.name}</span> {text}
+            </>
+          )}
         </p>
       </div>
       <span className="shrink-0 text-xs text-muted-foreground">

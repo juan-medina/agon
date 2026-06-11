@@ -216,6 +216,33 @@ function makeDefaultFetch() {
       );
     }
 
+    // GET /api/players/:handle/activity
+    const activityMatch = url.match(/\/api\/players\/([^/]+)\/activity$/);
+    if (activityMatch && method === "GET") {
+      const target = resolvePlayer(activityMatch[1]);
+      const pid = target?.id;
+      const journeys = JOURNEYS.filter((j) => j.player.id === pid);
+      return new Response(
+        JSON.stringify({
+          items: journeys.map((j) => ({
+            kind: "journey",
+            journey: {
+              id: j.id,
+              igdb_id: j.igdbId ?? 0,
+              game: j.game,
+              cover_url: j.coverUrl ?? null,
+              genres: j.genres,
+              duration_seconds: 0,
+              played_at: j.playedAt.toISOString(),
+              log: j.log ?? null,
+              player: target ? toRawPlayer(target) : { id: pid, handle: "", name: "", color: "#000000" },
+            },
+          })),
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
+    }
+
     // GET /api/players/:handle/journeys
     const journeysMatch = url.match(/\/api\/players\/([^/]+)\/journeys$/);
     if (journeysMatch && method === "GET") {

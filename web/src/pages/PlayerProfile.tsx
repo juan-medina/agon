@@ -7,12 +7,12 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import {
   getPlayerProfile,
-  getPlayerJourneys,
   getFollowers,
   getFollowing,
   followPlayer,
   unfollowPlayer,
 } from "@/services/players";
+import { getPlayerActivity } from "@/services/feed";
 import { getCurrentPlayer, updateProfile } from "@/services/auth";
 import ProfileView from "@/components/ProfileView";
 import AvatarEditor from "@/components/AvatarEditor";
@@ -38,9 +38,9 @@ export default function PlayerProfile() {
     enabled: !!handle,
   });
 
-  const { data: journeys = [] } = useQuery({
-    queryKey: ["journeys", "player", handle],
-    queryFn: () => getPlayerJourneys(handle!),
+  const { data: activity = [] } = useQuery({
+    queryKey: ["activity", "player", handle],
+    queryFn: () => getPlayerActivity(handle!),
     enabled: !!handle,
   });
 
@@ -139,10 +139,15 @@ export default function PlayerProfile() {
     <>
       <ProfileView
         profile={profile}
-        journeys={journeys}
+        items={activity}
+        viewerId={currentPlayer?.id}
         followers={followers}
         following={following}
-        sectionTitle={isOwnProfile ? t("hero_section_journeys") : `${profile.player.name}'s journeys`}
+        sectionTitle={
+          isOwnProfile
+            ? t("profile_section_activity_you")
+            : t("profile_section_activity", { name: profile.player.name })
+        }
         header={
           <button
             onClick={() => navigate(-1)}

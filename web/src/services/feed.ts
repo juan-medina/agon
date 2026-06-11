@@ -49,40 +49,49 @@ function toPlayer(p: RawPlayer) {
   };
 }
 
+function toFeedItem(item: RawFeedItem): FeedItem {
+  if (item.kind === "activity") {
+    const a = item.activity;
+    return {
+      kind: "activity",
+      activity: {
+        type: a.type,
+        createdAt: new Date(a.created_at),
+        actor: toPlayer(a.actor),
+        recipient: toPlayer(a.recipient),
+        subjectId: a.subject_id,
+        subjectTitle: a.subject_title,
+      },
+    };
+  }
+  const j = item.journey;
+  return {
+    kind: "journey",
+    journey: {
+      id: j.id,
+      igdbId: j.igdb_id,
+      player: toPlayer(j.player),
+      game: j.game,
+      coverUrl: j.cover_url,
+      genres: j.genres,
+      releaseYear: j.release_year,
+      duration: formatDuration(j.duration_seconds),
+      playedAt: new Date(j.played_at),
+      log: j.log,
+    },
+  };
+}
+
 export async function getFeedItems(): Promise<FeedItem[]> {
   const resp = await apiFetch(`${API_BASE}/api/feed`, { credentials: "include" });
   if (!resp.ok) return [];
   const data: { items: RawFeedItem[] } = await resp.json();
-  return (data.items ?? []).map((item): FeedItem => {
-    if (item.kind === "activity") {
-      const a = item.activity;
-      return {
-        kind: "activity",
-        activity: {
-          type: a.type,
-          createdAt: new Date(a.created_at),
-          actor: toPlayer(a.actor),
-          recipient: toPlayer(a.recipient),
-          subjectId: a.subject_id,
-          subjectTitle: a.subject_title,
-        },
-      };
-    }
-    const j = item.journey;
-    return {
-      kind: "journey",
-      journey: {
-        id: j.id,
-        igdbId: j.igdb_id,
-        player: toPlayer(j.player),
-        game: j.game,
-        coverUrl: j.cover_url,
-        genres: j.genres,
-        releaseYear: j.release_year,
-        duration: formatDuration(j.duration_seconds),
-        playedAt: new Date(j.played_at),
-        log: j.log,
-      },
-    };
-  });
+  return (data.items ?? []).map(toFeedItem);
+}
+
+export async function getPlayerActivity(handle: string): Promise<FeedItem[]> {
+  const resp = await apiFetch(`${API_BASE}/api/players/${handle}/activity`, { credentials: "include" });
+  if (!resp.ok) return [];
+  const data: { items: RawFeedItem[] } = await resp.json();
+  return (data.items ?? []).map(toFeedItem);
 }

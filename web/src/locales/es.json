@@ -127,8 +127,6 @@
   "hero_save": "Guardar",
   "hero_cancel": "Cancelar",
   "hero_edit_bio": "Editar bio",
-  "hero_section_journeys": "Tus partidas",
-
   "realm_quiet": "Tu reino está en silencio.",
   "realm_follow_hint": "Sigue a jugadores para ver sus partidas aquí.",
   "realm_discover": "Descubrir jugadores",
@@ -136,6 +134,8 @@
   "realm_activity_commented": "ha comentado en la partida de {{game}} de {{recipient}}",
   "realm_activity_followed_you": "ha empezado a seguirte",
   "realm_activity_commented_you": "ha comentado en tu partida de {{game}}",
+  "realm_activity_followed_by_you": "Has empezado a seguir a {{recipient}}",
+  "realm_activity_commented_by_you": "Has comentado en la partida de {{game}} de {{recipient}}",
 
   "profile_not_found": "Jugador no encontrado.",
   "profile_back": "Volver",
@@ -148,7 +148,9 @@
   "profile_stat_following": "Siguiendo",
   "profile_recent_games": "Juegos recientes",
   "profile_genres": "Géneros",
-  "profile_no_journeys": "Aún no hay partidas.",
+  "profile_section_activity_you": "Tu actividad",
+  "profile_section_activity": "Actividad de {{name}}",
+  "profile_no_activity": "Aún no hay actividad.",
   "profile_followers_modal": "Seguidores",
   "profile_following_modal": "Siguiendo",
 

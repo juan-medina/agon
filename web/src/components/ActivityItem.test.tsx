@@ -82,4 +82,43 @@ describe("ActivityItem", () => {
     expect(screen.getByText(/commented on your Elden Ring journey/i)).toBeInTheDocument();
     expect(screen.getByRole("link")).toHaveAttribute("href", "/journey/j99");
   });
+
+  it("renders 'You started following <recipient>' when the viewer is the actor", () => {
+    const activity: Activity = {
+      type: "follow",
+      createdAt: new Date("2026-06-01T12:00:00Z"),
+      actor: PLAYERS[0],
+      recipient: PLAYERS[1],
+    };
+    render(
+      <MemoryRouter>
+        <ActivityItem activity={activity} viewerId={PLAYERS[0].id} />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText(new RegExp(`You started following ${PLAYERS[1].name}`, "i"))).toBeInTheDocument();
+    expect(screen.queryByText(PLAYERS[0].name, { exact: false })).not.toBeInTheDocument();
+    expect(screen.getByRole("link")).toHaveAttribute("href", `/player/${PLAYERS[1].handle}`);
+  });
+
+  it("renders 'You commented on <recipient>'s <game> journey' when the viewer is the actor", () => {
+    const activity: Activity = {
+      type: "comment",
+      createdAt: new Date("2026-06-01T12:00:00Z"),
+      actor: PLAYERS[0],
+      recipient: PLAYERS[1],
+      subjectId: "j99",
+      subjectTitle: "Elden Ring",
+    };
+    render(
+      <MemoryRouter>
+        <ActivityItem activity={activity} viewerId={PLAYERS[0].id} />
+      </MemoryRouter>,
+    );
+
+    expect(
+      screen.getByText(new RegExp(`You commented on ${PLAYERS[1].name}'s Elden Ring journey`, "i")),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link")).toHaveAttribute("href", "/journey/j99");
+  });
 });

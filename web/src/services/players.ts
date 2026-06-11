@@ -2,9 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import type { Player, PlayerProfile } from "@/models/player";
-import type { Journey } from "@/models/journey";
 import { API_BASE, apiFetch } from "@/lib/api";
-import { formatDuration } from "@/lib/time";
 
 type RawPlayer = {
   id: string;
@@ -16,18 +14,6 @@ type RawPlayer = {
   followers?: number;
   following?: number;
   is_following?: boolean;
-};
-
-type RawJourney = {
-  id: string;
-  igdb_id: number;
-  game: string;
-  cover_url?: string;
-  genres: string[];
-  release_year?: number;
-  played_at: string;
-  duration_seconds: number;
-  log?: string;
 };
 
 function rawToPlayer(p: RawPlayer): Player {
@@ -111,28 +97,6 @@ export async function getPlayer(id: string): Promise<Player | undefined> {
 export async function getIsFollowing(playerId: string): Promise<boolean> {
   const player = await getPlayer(playerId);
   return player?.isFollowing ?? false;
-}
-
-export async function getPlayerJourneys(id: string): Promise<Journey[]> {
-  const [player, resp] = await Promise.all([
-    getPlayer(id),
-    fetch(`${API_BASE}/api/players/${id}/journeys`, { credentials: "include" }),
-  ]);
-  if (!player) return [];
-  if (!resp.ok) throw new Error(`get player journeys: ${resp.status}`);
-  const data: { journeys: RawJourney[] } = await resp.json();
-  return (data.journeys ?? []).map((j): Journey => ({
-    id: j.id,
-    igdbId: j.igdb_id,
-    player,
-    game: j.game,
-    coverUrl: j.cover_url,
-    genres: j.genres,
-    releaseYear: j.release_year,
-    duration: formatDuration(j.duration_seconds ?? 0),
-    playedAt: new Date(j.played_at),
-    log: j.log,
-  }));
 }
 
 export async function getFollowers(playerId: string): Promise<Player[]> {

@@ -7,8 +7,8 @@ import GenreChip from "@/components/GenreChip";
 import { avatarSrc, initials } from "@/lib/display";
 import { genreBarColor } from "@/lib/genres";
 import FollowListModal from "@/components/FollowListModal";
-import JourneyCard from "@/components/JourneyCard";
-import type { Journey, Player, PlayerProfile } from "@/models";
+import ActivityFeed from "@/components/ActivityFeed";
+import type { FeedItem, Player, PlayerProfile } from "@/models";
 
 function formatSeconds(seconds: number): string {
   const h = Math.floor(seconds / 3600);
@@ -20,7 +20,8 @@ function formatSeconds(seconds: number): string {
 
 interface ProfileViewProps {
   profile: PlayerProfile;
-  journeys: Journey[];
+  items: FeedItem[];
+  viewerId?: string;
   followers: Player[];
   following: Player[];
   sectionTitle: string;
@@ -36,7 +37,8 @@ interface ProfileViewProps {
 
 export default function ProfileView({
   profile,
-  journeys,
+  items,
+  viewerId,
   followers,
   following,
   sectionTitle,
@@ -189,22 +191,20 @@ export default function ProfileView({
         </div>
       )}
 
-      {/* Journeys */}
+      {/* Activity */}
       <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
         {sectionTitle}
       </h2>
 
-      {journeys.length > 0 ? (
-        <div className="flex flex-col gap-3">
-          {journeys.map((journey) => (
-            <JourneyCard key={journey.id} journey={journey} />
-          ))}
-        </div>
-      ) : (
-        <div className="rounded-lg border border-border bg-card px-4 py-12 text-center text-sm text-muted-foreground">
-          {t("profile_no_journeys")}
-        </div>
-      )}
+      <ActivityFeed
+        items={items}
+        viewerId={viewerId}
+        emptyState={
+          <div className="rounded-lg border border-border bg-card px-4 py-12 text-center text-sm text-muted-foreground">
+            {t("profile_no_activity")}
+          </div>
+        }
+      />
 
       <div className="h-8" />
 

@@ -183,6 +183,65 @@ func GetFollowingActivity(ctx context.Context, pool *pgxpool.Pool, userID string
 	return events, rows.Err()
 }
 
+// GetUserActivity returns follow/comment events performed by userID
+// (regardless of who follows whom), ordered by ea.created_at descending with
+// optional cursor pagination. Activity for journeys that have since been
+// deleted (subject_id is NULL for new_comment) is omitted.
+func GetUserActivity(ctx context.Context, pool *pgxpool.Pool, userID string, limit int, cursor string) ([]ActivityEvent, error) {
+	const cols = `
+		e.type, e.subject_id, e.subject_title, ea.created_at,
+		a.id, a.handle, COALESCE(a.display_name, a.name), COALESCE(a.custom_avatar_url, a.avatar_url), a.color,
+		r.id, r.handle, COALESCE(r.display_name, r.name), COALESCE(r.custom_avatar_url, r.avatar_url), r.color`
+
+	var rows pgx.Rows
+	var err error
+
+	if cursor == "" {
+		rows, err = pool.Query(ctx, `
+			SELECT`+cols+`
+			FROM echo_actors ea
+			JOIN echoes e ON e.id = ea.echo_id
+			JOIN users a ON a.id = ea.actor_id
+			JOIN users r ON r.id = e.recipient_id
+			WHERE ea.actor_id = $1
+			ORDER BY ea.created_at DESC
+			LIMIT $2
+		`, userID, limit)
+	} else {
+		rows, err = pool.Query(ctx, `
+			SELECT`+cols+`
+			FROM echo_actors ea
+			JOIN echoes e ON e.id = ea.echo_id
+			JOIN users a ON a.id = ea.actor_id
+			JOIN users r ON r.id = e.recipient_id
+			WHERE ea.actor_id = $1 AND ea.created_at < $2
+			ORDER BY ea.created_at DESC
+			LIMIT $3
+		`, userID, cursor, limit)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get user activity: %w", err)
+	}
+	defer rows.Close()
+
+	var events []ActivityEvent
+	for rows.Next() {
+		var e ActivityEvent
+		if err := rows.Scan(
+			&e.Type, &e.SubjectID, &e.SubjectTitle, &e.CreatedAt,
+			&e.ActorID, &e.ActorHandle, &e.ActorName, &e.ActorAvatarURL, &e.ActorColor,
+			&e.RecipientID, &e.RecipientHandle, &e.RecipientName, &e.RecipientAvatarURL, &e.RecipientColor,
+		); err != nil {
+			return nil, fmt.Errorf("scan activity event: %w", err)
+		}
+		if e.Type == "new_comment" && e.SubjectID == nil {
+			continue
+		}
+		events = append(events, e)
+	}
+	return events, rows.Err()
+}
+
 // ListEchoes returns up to 50 echoes for the user, reverse chronological by updated_at.
 // Each echo includes up to 3 actor profiles and the total actor count.
 func ListEchoes(ctx context.Context, pool *pgxpool.Pool, userID string) ([]EchoRow, error) {

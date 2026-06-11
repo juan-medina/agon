@@ -36,6 +36,7 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/feed", h.getFeed)
 	mux.HandleFunc("GET /api/players/{handle}", h.getPlayer)
 	mux.HandleFunc("GET /api/players/{handle}/profile", h.getPlayerProfile)
+	mux.HandleFunc("GET /api/players/{handle}/activity", h.getPlayerActivity)
 	mux.HandleFunc("GET /api/players/{handle}/followers", h.getFollowers)
 	mux.HandleFunc("GET /api/players/{handle}/following", h.getFollowing)
 	mux.HandleFunc("POST /api/players/{handle}/follow", h.followPlayer)
@@ -405,6 +406,79 @@ func (h *Handler) getFeed(w http.ResponseWriter, r *http.Request) {
 	}
 
 	items, nextCursor := mergeFeedItems(journeys, activity, limit, journeyCursor, activityCursor)
+
+	result := map[string]any{"items": items}
+	if nextCursor != "" {
+		result["next_cursor"] = nextCursor
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(result)
+}
+
+// journeyWithPlayer attaches the given user's profile fields to a journey,
+// for reuse with mergeFeedItems/journeyToFeedEntry.
+func journeyWithPlayer(j db.Journey, user db.User) db.JourneyWithPlayer {
+	return db.JourneyWithPlayer{
+		ID:              j.ID,
+		UserID:          j.UserID,
+		IGDBID:          j.IGDBID,
+		GameName:        j.GameName,
+		CoverURL:        j.CoverURL,
+		Genres:          j.Genres,
+		ReleaseYear:     j.ReleaseYear,
+		DurationSeconds: j.DurationSeconds,
+		Log:             j.Log,
+		PlayedAt:        j.PlayedAt,
+		PlayerHandle:    user.Handle,
+		PlayerName:      user.Name,
+		PlayerAvatarURL: user.AvatarURL,
+		PlayerColor:     user.Color,
+	}
+}
+
+// getPlayerActivity returns a merged feed of the given player's own
+// journeys and activity events they triggered (follows, comments), in the
+// same shape as getFeed.
+func (h *Handler) getPlayerActivity(w http.ResponseWriter, r *http.Request) {
+	user, ok := h.resolvePlayer(w, r)
+	if !ok {
+		return
+	}
+
+	limit := 20
+	if s := r.URL.Query().Get("limit"); s != "" {
+		if n, err := strconv.Atoi(s); err == nil && n > 0 && n <= 50 {
+			limit = n
+		}
+	}
+
+	journeyCursor, activityCursor := "", ""
+	if cursor := r.URL.Query().Get("cursor"); cursor != "" {
+		if before, after, found := strings.Cut(cursor, "|"); found {
+			journeyCursor, activityCursor = before, after
+		}
+	}
+
+	journeys, err := db.ListJourneysByUser(r.Context(), h.pool, user.ID, limit+1, journeyCursor)
+	if err != nil {
+		log.Printf("profile/activity: %v", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	journeysWithPlayer := make([]db.JourneyWithPlayer, len(journeys))
+	for i, j := range journeys {
+		journeysWithPlayer[i] = journeyWithPlayer(j, user)
+	}
+
+	activity, err := db.GetUserActivity(r.Context(), h.pool, user.ID, limit+1, activityCursor)
+	if err != nil {
+		log.Printf("profile/activity: %v", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	items, nextCursor := mergeFeedItems(journeysWithPlayer, activity, limit, journeyCursor, activityCursor)
 
 	result := map[string]any{"items": items}
 	if nextCursor != "" {
