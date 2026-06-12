@@ -4,6 +4,7 @@ package db
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -21,12 +22,12 @@ type HorizonEntry struct {
 	AddedAt     time.Time
 }
 
-// AddHorizonEntry adds a game to playerID's Horizon. It is idempotent —
-// added is false if the entry already existed.
+// AddHorizonEntry adds a game to playerID's Horizon, placing it last in their
+// order. It is idempotent — added is false if the entry already existed.
 func AddHorizonEntry(ctx context.Context, pool *pgxpool.Pool, playerID string, igdbID int) (bool, error) {
 	tag, err := pool.Exec(ctx, `
-		INSERT INTO horizon_entries (player_id, igdb_id)
-		VALUES ($1, $2)
+		INSERT INTO horizon_entries (player_id, igdb_id, position)
+		VALUES ($1, $2, COALESCE((SELECT MAX(position) + 1 FROM horizon_entries WHERE player_id = $1), 0))
 		ON CONFLICT (player_id, igdb_id) DO NOTHING
 	`, playerID, igdbID)
 	if err != nil {
@@ -46,14 +47,15 @@ func RemoveHorizonEntry(ctx context.Context, pool *pgxpool.Pool, playerID string
 	return nil
 }
 
-// ListHorizonEntries returns playerID's Horizon, most recently added first.
+// ListHorizonEntries returns playerID's Horizon, in the player's chosen
+// order (most recently added first, until reordered).
 func ListHorizonEntries(ctx context.Context, pool *pgxpool.Pool, playerID string) ([]HorizonEntry, error) {
 	rows, err := pool.Query(ctx, `
 		SELECT g.igdb_id, g.name, g.cover_url, g.genres, g.release_year, h.added_at
 		FROM horizon_entries h
 		JOIN igdb_games g ON g.igdb_id = h.igdb_id
 		WHERE h.player_id = $1
-		ORDER BY h.added_at DESC
+		ORDER BY h.position ASC, h.added_at DESC
 	`, playerID)
 	if err != nil {
 		return nil, fmt.Errorf("list horizon entries: %w", err)
@@ -69,6 +71,46 @@ func ListHorizonEntries(ctx context.Context, pool *pgxpool.Pool, playerID string
 		entries = append(entries, e)
 	}
 	return entries, rows.Err()
+}
+
+// ErrHorizonOrderMismatch is returned by ReorderHorizonEntries when igdbIDs
+// does not contain exactly the set of games currently on playerID's Horizon.
+var ErrHorizonOrderMismatch = errors.New("horizon order mismatch")
+
+// ReorderHorizonEntries sets the order of playerID's Horizon to igdbIDs.
+// igdbIDs must contain exactly the set of games currently on the player's
+// Horizon, in the desired order, or ErrHorizonOrderMismatch is returned.
+func ReorderHorizonEntries(ctx context.Context, pool *pgxpool.Pool, playerID string, igdbIDs []int) error {
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("reorder horizon entries: begin: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	var count int
+	if err := tx.QueryRow(ctx, `SELECT COUNT(*) FROM horizon_entries WHERE player_id = $1`, playerID).Scan(&count); err != nil {
+		return fmt.Errorf("reorder horizon entries: count: %w", err)
+	}
+	if count != len(igdbIDs) {
+		return ErrHorizonOrderMismatch
+	}
+
+	for position, igdbID := range igdbIDs {
+		tag, err := tx.Exec(ctx, `
+			UPDATE horizon_entries SET position = $1 WHERE player_id = $2 AND igdb_id = $3
+		`, position, playerID, igdbID)
+		if err != nil {
+			return fmt.Errorf("reorder horizon entries: update: %w", err)
+		}
+		if tag.RowsAffected() == 0 {
+			return ErrHorizonOrderMismatch
+		}
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("reorder horizon entries: commit: %w", err)
+	}
+	return nil
 }
 
 // IsInHorizon reports whether playerID has igdbID on their Horizon.

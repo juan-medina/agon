@@ -196,10 +196,13 @@
   "journey_you": "You",
 
   "horizon_title": "Horizon",
+  "horizon_subtitle": "Games you're planning to play next. Drag to reorder — the top spot is what's coming up.",
   "horizon_empty": "This is the place for your future journeys.",
   "horizon_add": "Add to horizon",
   "horizon_added": "In horizon",
   "horizon_remove": "Remove from horizon",
+  "horizon_next_up": "Next up",
+  "horizon_drag_handle": "Drag to reorder",
 
   "game_search_placeholder": "Search for a game…",
   "game_no_results": "No games found for “{{query}}”",

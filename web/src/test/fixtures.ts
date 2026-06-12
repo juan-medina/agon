@@ -263,6 +263,7 @@ export const MOCK_GAME_DETAIL: GameDetail = {
 
 export const MOCK_HORIZON: HorizonEntry[] = [
   { igdbId: 4, name: "Cyberpunk 2077", coverUrl: "https://cdn.akamai.steamstatic.com/steam/apps/1091500/library_600x900.jpg", genres: ["RPG", "Open World", "Sci-fi"], releaseYear: 2020 },
+  { igdbId: 5, name: "Hades", coverUrl: "https://cdn.akamai.steamstatic.com/steam/apps/1145360/library_600x900.jpg", genres: ["Roguelike", "Action"], releaseYear: 2020 },
 ];
 
 export const MOCK_PENDING_JOURNEYS: PendingJourney[] = [

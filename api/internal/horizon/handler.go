@@ -8,6 +8,7 @@ package horizon
 import (
 	"crypto/ed25519"
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 	"strconv"
@@ -34,6 +35,7 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/players/{handle}/horizon", h.list)
 	mux.HandleFunc("POST /api/me/horizon", h.add)
 	mux.HandleFunc("DELETE /api/me/horizon/{igdbId}", h.remove)
+	mux.HandleFunc("PATCH /api/me/horizon/order", h.reorder)
 }
 
 func (h *Handler) authenticate(w http.ResponseWriter, r *http.Request) (string, bool) {
@@ -147,6 +149,33 @@ func (h *Handler) remove(w http.ResponseWriter, r *http.Request) {
 
 	if err := db.RemoveHorizonEntry(r.Context(), h.pool, userID, igdbID); err != nil {
 		log.Printf("horizon/remove: %v", err)
+		http.Error(w, `{"error":"internal_error"}`, http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) reorder(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.authenticate(w, r)
+	if !ok {
+		return
+	}
+
+	var body struct {
+		IGDBIDs []int `json:"igdb_ids"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, `{"error":"invalid_body"}`, http.StatusBadRequest)
+		return
+	}
+
+	if err := db.ReorderHorizonEntries(r.Context(), h.pool, userID, body.IGDBIDs); err != nil {
+		if errors.Is(err, db.ErrHorizonOrderMismatch) {
+			http.Error(w, `{"error":"order_mismatch"}`, http.StatusBadRequest)
+			return
+		}
+		log.Printf("horizon/reorder: %v", err)
 		http.Error(w, `{"error":"internal_error"}`, http.StatusInternalServerError)
 		return
 	}

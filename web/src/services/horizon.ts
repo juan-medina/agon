@@ -43,3 +43,13 @@ export async function removeFromHorizon(igdbId: number): Promise<void> {
   });
   if (!resp.ok) throw new Error(`remove from horizon: ${resp.status}`);
 }
+
+export async function reorderHorizon(igdbIds: number[]): Promise<void> {
+  const resp = await apiFetch(`${API_BASE}/api/me/horizon/order`, {
+    method: "PATCH",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ igdb_ids: igdbIds }),
+  });
+  if (!resp.ok) throw new Error(`reorder horizon: ${resp.status}`);
+}

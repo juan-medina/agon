@@ -36,8 +36,8 @@ function CategoryBadge({ category }: { category?: number }) {
   );
 }
 
-export function GameCover({ game, coverUrl, size }: { game: string; coverUrl?: string; size: "sm" | "md" }) {
-  const dims = size === "sm" ? "h-10 w-10 text-lg" : "h-16 w-16 text-2xl";
+export function GameCover({ game, coverUrl, size }: { game: string; coverUrl?: string; size: "sm" | "md" | "lg" }) {
+  const dims = size === "sm" ? "h-10 w-10 text-lg" : size === "md" ? "h-16 w-16 text-2xl" : "h-24 w-24 text-4xl";
   return (
     <div className={`relative ${dims} shrink-0 overflow-hidden rounded-md bg-slate-800`}>
       {coverUrl

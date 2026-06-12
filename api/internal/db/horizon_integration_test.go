@@ -7,6 +7,7 @@ package db_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -70,12 +71,12 @@ func TestRemoveHorizonEntry(t *testing.T) {
 	}
 }
 
-func TestListHorizonEntries_OrderedByAddedAtDesc(t *testing.T) {
+func TestListHorizonEntries_OrderedByPosition(t *testing.T) {
 	pool := connectTestDB(t)
 	ctx := context.Background()
 	playerID := createTestUser(t, pool)
-	insertTestGame(t, pool, 91003, "Older Game")
-	insertTestGame(t, pool, 91004, "Newer Game")
+	insertTestGame(t, pool, 91003, "First Added Game")
+	insertTestGame(t, pool, 91004, "Second Added Game")
 
 	if _, err := db.AddHorizonEntry(ctx, pool, playerID, 91003); err != nil {
 		t.Fatalf("add horizon entry 1: %v", err)
@@ -91,8 +92,53 @@ func TestListHorizonEntries_OrderedByAddedAtDesc(t *testing.T) {
 	if len(entries) != 2 {
 		t.Fatalf("expected 2 entries, got %d", len(entries))
 	}
-	if entries[0].IGDBID != 91004 || entries[1].IGDBID != 91003 {
-		t.Errorf("expected entries in added_at DESC order, got %d, %d", entries[0].IGDBID, entries[1].IGDBID)
+	if entries[0].IGDBID != 91003 || entries[1].IGDBID != 91004 {
+		t.Errorf("expected entries in position order (newly added last), got %d, %d", entries[0].IGDBID, entries[1].IGDBID)
+	}
+}
+
+func TestReorderHorizonEntries(t *testing.T) {
+	pool := connectTestDB(t)
+	ctx := context.Background()
+	playerID := createTestUser(t, pool)
+	insertTestGame(t, pool, 91010, "First Game")
+	insertTestGame(t, pool, 91011, "Second Game")
+	insertTestGame(t, pool, 91012, "Third Game")
+
+	for _, id := range []int{91010, 91011, 91012} {
+		if _, err := db.AddHorizonEntry(ctx, pool, playerID, id); err != nil {
+			t.Fatalf("add horizon entry %d: %v", id, err)
+		}
+	}
+
+	if err := db.ReorderHorizonEntries(ctx, pool, playerID, []int{91012, 91010, 91011}); err != nil {
+		t.Fatalf("reorder horizon entries: %v", err)
+	}
+
+	entries, err := db.ListHorizonEntries(ctx, pool, playerID)
+	if err != nil {
+		t.Fatalf("list horizon entries: %v", err)
+	}
+	if len(entries) != 3 {
+		t.Fatalf("expected 3 entries, got %d", len(entries))
+	}
+	if entries[0].IGDBID != 91012 || entries[1].IGDBID != 91010 || entries[2].IGDBID != 91011 {
+		t.Errorf("expected reordered entries 91012, 91010, 91011, got %d, %d, %d", entries[0].IGDBID, entries[1].IGDBID, entries[2].IGDBID)
+	}
+}
+
+func TestReorderHorizonEntries_Mismatch(t *testing.T) {
+	pool := connectTestDB(t)
+	ctx := context.Background()
+	playerID := createTestUser(t, pool)
+	insertTestGame(t, pool, 91013, "Lone Game")
+
+	if _, err := db.AddHorizonEntry(ctx, pool, playerID, 91013); err != nil {
+		t.Fatalf("add horizon entry: %v", err)
+	}
+
+	if err := db.ReorderHorizonEntries(ctx, pool, playerID, []int{91013, 99999}); !errors.Is(err, db.ErrHorizonOrderMismatch) {
+		t.Errorf("expected ErrHorizonOrderMismatch, got %v", err)
 	}
 }
 

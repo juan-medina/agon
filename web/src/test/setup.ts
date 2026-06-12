@@ -339,6 +339,16 @@ function makeDefaultFetch() {
       return new Response(null, { status: 204 });
     }
 
+    // PATCH /api/me/horizon/order
+    if (url.endsWith("/api/me/horizon/order") && method === "PATCH") {
+      const { igdb_ids } = JSON.parse((init?.body as string) ?? "{}") as { igdb_ids: number[] };
+      const entries = horizonState[MY_PLAYER.id] ?? [];
+      horizonState[MY_PLAYER.id] = igdb_ids
+        .map((id) => entries.find((e) => e.igdbId === id))
+        .filter((e): e is (typeof MOCK_HORIZON)[number] => !!e);
+      return new Response(null, { status: 204 });
+    }
+
     // GET /api/players/:handle
     const playerMatch = url.match(/\/api\/players\/([^/]+)$/);
     if (playerMatch && method === "GET") {

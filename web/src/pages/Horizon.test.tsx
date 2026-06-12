@@ -19,6 +19,24 @@ describe("Horizon", () => {
   it("shows the player's horizon entries", async () => {
     renderHorizon();
     expect(await screen.findByText(MOCK_HORIZON[0].name)).toBeInTheDocument();
+    expect(await screen.findByText(MOCK_HORIZON[1].name)).toBeInTheDocument();
+  });
+
+  it("shows the first entry as 'Next up'", async () => {
+    renderHorizon();
+    expect(await screen.findByText(/next up/i)).toBeInTheDocument();
+  });
+
+  it("filters entries by genre", async () => {
+    const user = userEvent.setup();
+    renderHorizon();
+    await screen.findByText(MOCK_HORIZON[0].name);
+
+    await user.click(screen.getByRole("button", { name: "Roguelike" }));
+
+    expect(await screen.findByText(MOCK_HORIZON[1].name)).toBeInTheDocument();
+    expect(screen.queryByText(MOCK_HORIZON[0].name)).not.toBeInTheDocument();
+    expect(screen.queryByText(/next up/i)).not.toBeInTheDocument();
   });
 
   it("shows the empty-state copy when the player's horizon has no entries", async () => {
@@ -53,9 +71,22 @@ describe("Horizon", () => {
   it("removing an entry takes it off the list", async () => {
     const user = userEvent.setup();
     renderHorizon();
-    const removeButton = await screen.findByRole("button", { name: /remove from horizon/i });
-    await user.click(removeButton);
+    await screen.findByText(MOCK_HORIZON[0].name);
+    const removeButtons = await screen.findAllByRole("button", { name: /remove from horizon/i });
+    await user.click(removeButtons[0]);
     await waitFor(() => expect(screen.queryByText(MOCK_HORIZON[0].name)).not.toBeInTheDocument());
+    expect(await screen.findByText(MOCK_HORIZON[1].name)).toBeInTheDocument();
+  });
+
+  it("removing all entries shows the empty state", async () => {
+    const user = userEvent.setup();
+    renderHorizon();
+    await screen.findByText(MOCK_HORIZON[0].name);
+    for (const entry of MOCK_HORIZON) {
+      const removeButtons = await screen.findAllByRole("button", { name: /remove from horizon/i });
+      await user.click(removeButtons[0]);
+      await waitFor(() => expect(screen.queryByText(entry.name)).not.toBeInTheDocument());
+    }
     expect(await screen.findByText(/place for your future journeys/i)).toBeInTheDocument();
   });
 });

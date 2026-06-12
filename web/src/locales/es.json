@@ -196,10 +196,13 @@
   "journey_you": "Tú",
 
   "horizon_title": "Horizonte",
+  "horizon_subtitle": "Juegos que planeas jugar a continuación. Arrastra para reordenar: el primer puesto es lo que viene.",
   "horizon_empty": "Aquí va el lugar de tus futuras partidas.",
   "horizon_add": "Añadir al horizonte",
   "horizon_added": "En el horizonte",
   "horizon_remove": "Quitar del horizonte",
+  "horizon_next_up": "A continuación",
+  "horizon_drag_handle": "Arrastra para reordenar",
 
   "game_search_placeholder": "Buscar un juego…",
   "game_no_results": "No se han encontrado juegos para «{{query}}»",
