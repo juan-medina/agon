@@ -198,8 +198,8 @@ export default function JourneyDetail() {
 
   const postCommentMutation = useMutation({
     mutationFn: (text: string) => postComment(id!, text),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["journey", id, "comments"] });
+    onSuccess: (newComment) => {
+      queryClient.setQueryData<Comment[]>(["journey", id, "comments"], (old = []) => [...old, newComment]);
       setCommentText("");
     },
   });
@@ -479,7 +479,7 @@ export default function JourneyDetail() {
               className="flex-1 resize-none rounded-md border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
             />
             <button
-              disabled={!commentText.trim()}
+              disabled={!commentText.trim() || postCommentMutation.isPending}
               onClick={() => { if (!currentPlayer) { setShowSignIn(true); return; } postCommentMutation.mutate(commentText); }}
               className="self-end rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity disabled:opacity-40"
             >

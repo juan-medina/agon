@@ -36,12 +36,14 @@ type ActivityEvent struct {
 
 // RecordActivity inserts a row into activity_events for the Realm/Hero
 // activity feeds. targetID is the player the action concerns (the journey
-// owner for new_comment, the followee for new_follower).
-func RecordActivity(ctx context.Context, pool *pgxpool.Pool, actorID, targetID, eventType string, subjectID, subjectTitle *string) error {
+// owner for new_comment, the followee for new_follower). commentID is set
+// for new_comment events so the row is removed automatically (ON DELETE
+// CASCADE) if the comment is deleted; it is nil for other event types.
+func RecordActivity(ctx context.Context, pool *pgxpool.Pool, actorID, targetID, eventType string, subjectID, subjectTitle, commentID *string) error {
 	_, err := pool.Exec(ctx, `
-		INSERT INTO activity_events (actor_id, target_id, type, subject_id, subject_title)
-		VALUES ($1, $2, $3, $4, $5)
-	`, actorID, targetID, eventType, subjectID, subjectTitle)
+		INSERT INTO activity_events (actor_id, target_id, type, subject_id, subject_title, comment_id)
+		VALUES ($1, $2, $3, $4, $5, $6)
+	`, actorID, targetID, eventType, subjectID, subjectTitle, commentID)
 	if err != nil {
 		return fmt.Errorf("record activity: %w", err)
 	}

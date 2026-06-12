@@ -71,6 +71,14 @@ CREATE TABLE IF NOT EXISTS journeys (
     created_at       timestamptz NOT NULL DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS comments (
+    id         uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+    journey_id uuid        NOT NULL REFERENCES journeys(id) ON DELETE CASCADE,
+    user_id    uuid        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    body       text        NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS follows (
     follower_id uuid        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     followee_id uuid        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -83,18 +91,25 @@ CREATE TABLE IF NOT EXISTS activity_events (
     actor_id        uuid        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     target_id       uuid        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     type            text        NOT NULL CHECK (type IN ('new_comment', 'new_follower')),
-    subject_id      uuid        REFERENCES journeys(id) ON DELETE SET NULL,
+    subject_id      uuid        REFERENCES journeys(id) ON DELETE CASCADE,
     subject_title   text,
     subject_igdb_id integer     REFERENCES igdb_games(igdb_id),
+    comment_id      uuid        REFERENCES comments(id) ON DELETE CASCADE,
     created_at      timestamptz NOT NULL DEFAULT now()
 );
 
 CREATE INDEX IF NOT EXISTS activity_events_actor_id_created_at_idx ON activity_events(actor_id, created_at DESC);
 
 ALTER TABLE activity_events ADD COLUMN IF NOT EXISTS subject_igdb_id integer REFERENCES igdb_games(igdb_id);
+ALTER TABLE activity_events ADD COLUMN IF NOT EXISTS comment_id uuid REFERENCES comments(id) ON DELETE CASCADE;
 ALTER TABLE activity_events DROP CONSTRAINT IF EXISTS activity_events_type_check;
 ALTER TABLE activity_events ADD CONSTRAINT activity_events_type_check
     CHECK (type IN ('new_comment', 'new_follower', 'horizon_add'));
+
+DELETE FROM activity_events WHERE type = 'new_comment' AND subject_id IS NULL;
+ALTER TABLE activity_events DROP CONSTRAINT IF EXISTS activity_events_subject_id_fkey;
+ALTER TABLE activity_events ADD CONSTRAINT activity_events_subject_id_fkey
+    FOREIGN KEY (subject_id) REFERENCES journeys(id) ON DELETE CASCADE;
 
 CREATE TABLE IF NOT EXISTS horizon_entries (
     id        bigint      PRIMARY KEY GENERATED ALWAYS AS IDENTITY,

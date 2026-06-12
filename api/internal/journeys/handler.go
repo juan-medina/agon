@@ -218,7 +218,7 @@ func (h *Handler) postComment(w http.ResponseWriter, r *http.Request) {
 		if err := db.UpsertCommentEcho(r.Context(), h.pool, meta.OwnerID, userID, id, meta.GameName); err != nil {
 			log.Printf("journeys/postComment: upsert echo: %v", err)
 		}
-		if err := db.RecordActivity(r.Context(), h.pool, userID, meta.OwnerID, "new_comment", &id, &meta.GameName); err != nil {
+		if err := db.RecordActivity(r.Context(), h.pool, userID, meta.OwnerID, "new_comment", &id, &meta.GameName, &comment.ID); err != nil {
 			log.Printf("journeys/postComment: record activity: %v", err)
 		}
 	}

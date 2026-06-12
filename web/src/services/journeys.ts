@@ -204,11 +204,8 @@ export async function getJourney(id: string): Promise<Journey | undefined> {
   };
 }
 
-export async function getComments(journeyId: string): Promise<Comment[]> {
-  const resp = await apiFetch(`${API_BASE}/api/journeys/${journeyId}/comments`, { credentials: "include" });
-  if (!resp.ok) throw new Error(`get comments: ${resp.status}`);
-  const data: { comments: RawComment[] } = await resp.json();
-  return (data.comments ?? []).map((c): Comment => ({
+function toComment(c: RawComment): Comment {
+  return {
     id: c.id,
     player: {
       id: c.player.id,
@@ -219,7 +216,14 @@ export async function getComments(journeyId: string): Promise<Comment[]> {
     },
     text: c.text,
     commentedAt: new Date(c.commented_at),
-  }));
+  };
+}
+
+export async function getComments(journeyId: string): Promise<Comment[]> {
+  const resp = await apiFetch(`${API_BASE}/api/journeys/${journeyId}/comments`, { credentials: "include" });
+  if (!resp.ok) throw new Error(`get comments: ${resp.status}`);
+  const data: { comments: RawComment[] } = await resp.json();
+  return (data.comments ?? []).map(toComment);
 }
 
 export async function getJourneyPlayers(journeyId: string): Promise<{
@@ -257,7 +261,7 @@ export async function getJourneyPlayers(journeyId: string): Promise<{
   return { following, others };
 }
 
-export async function postComment(journeyId: string, text: string): Promise<void> {
+export async function postComment(journeyId: string, text: string): Promise<Comment> {
   const resp = await apiFetch(`${API_BASE}/api/journeys/${journeyId}/comments`, {
     method: "POST",
     credentials: "include",
@@ -265,6 +269,8 @@ export async function postComment(journeyId: string, text: string): Promise<void
     body: JSON.stringify({ text }),
   });
   if (!resp.ok) throw new Error(`post comment: ${resp.status}`);
+  const data: RawComment = await resp.json();
+  return toComment(data);
 }
 
 export async function deleteJourney(journeyId: string): Promise<void> {

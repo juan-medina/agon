@@ -42,7 +42,7 @@ func TestRecordActivity_GetUserActivity_Follower(t *testing.T) {
 	actorID := createTestUserNamed(t, pool, "-actor")
 	targetID := createTestUserNamed(t, pool, "-target")
 
-	if err := db.RecordActivity(context.Background(), pool, actorID, targetID, "new_follower", nil, nil); err != nil {
+	if err := db.RecordActivity(context.Background(), pool, actorID, targetID, "new_follower", nil, nil, nil); err != nil {
 		t.Fatalf("record activity: %v", err)
 	}
 
@@ -81,7 +81,7 @@ func TestGetFollowingActivity_ReturnsFollowedUsersActivity(t *testing.T) {
 		pool.Exec(ctx, "DELETE FROM follows WHERE follower_id = $1 AND followee_id = $2", follower, actor)
 	})
 
-	if err := db.RecordActivity(ctx, pool, actor, target, "new_follower", nil, nil); err != nil {
+	if err := db.RecordActivity(ctx, pool, actor, target, "new_follower", nil, nil, nil); err != nil {
 		t.Fatalf("record activity: %v", err)
 	}
 
@@ -102,7 +102,7 @@ func TestGetUserActivity_SkipsCommentWithNilSubject(t *testing.T) {
 	actorID := createTestUserNamed(t, pool, "-actor")
 	targetID := createTestUserNamed(t, pool, "-target")
 
-	if err := db.RecordActivity(context.Background(), pool, actorID, targetID, "new_comment", nil, nil); err != nil {
+	if err := db.RecordActivity(context.Background(), pool, actorID, targetID, "new_comment", nil, nil, nil); err != nil {
 		t.Fatalf("record activity: %v", err)
 	}
 
@@ -141,7 +141,7 @@ func TestGetUserActivity_CommentWithSubject(t *testing.T) {
 	t.Cleanup(func() { pool.Exec(ctx, "DELETE FROM journeys WHERE id = $1", journeyID) })
 
 	gameName := "Test Game"
-	if err := db.RecordActivity(ctx, pool, actorID, targetID, "new_comment", &journeyID, &gameName); err != nil {
+	if err := db.RecordActivity(ctx, pool, actorID, targetID, "new_comment", &journeyID, &gameName, nil); err != nil {
 		t.Fatalf("record activity: %v", err)
 	}
 
@@ -161,6 +161,100 @@ func TestGetUserActivity_CommentWithSubject(t *testing.T) {
 	}
 	if e.SubjectTitle == nil || *e.SubjectTitle != gameName {
 		t.Errorf("expected subject title %s, got %v", gameName, e.SubjectTitle)
+	}
+}
+
+// setupCommentActivity creates an actor, a target (journey owner), a journey,
+// a comment by the actor on that journey, and the corresponding new_comment
+// activity event. Returns the journey ID, comment ID, and actor ID.
+func setupCommentActivity(t *testing.T, pool *pgxpool.Pool) (journeyID, commentID, actorID string) {
+	t.Helper()
+	ctx := context.Background()
+	actorID = createTestUserNamed(t, pool, "-actor")
+	targetID := createTestUserNamed(t, pool, "-target")
+
+	if _, err := pool.Exec(ctx, `
+		INSERT INTO igdb_games (igdb_id, name) VALUES (90002, 'Test Game 2')
+		ON CONFLICT (igdb_id) DO NOTHING
+	`); err != nil {
+		t.Fatalf("insert igdb_games: %v", err)
+	}
+	t.Cleanup(func() { pool.Exec(ctx, "DELETE FROM igdb_games WHERE igdb_id = 90002") })
+
+	err := pool.QueryRow(ctx, `
+		INSERT INTO journeys (user_id, igdb_id, started_at, ended_at, duration_seconds, played_at)
+		VALUES ($1, 90002, now(), now(), 3600, now())
+		RETURNING id
+	`, targetID).Scan(&journeyID)
+	if err != nil {
+		t.Fatalf("insert journey: %v", err)
+	}
+	t.Cleanup(func() { pool.Exec(ctx, "DELETE FROM journeys WHERE id = $1", journeyID) })
+
+	comment, err := db.InsertComment(ctx, pool, journeyID, actorID, "nice journey!")
+	if err != nil {
+		t.Fatalf("insert comment: %v", err)
+	}
+	commentID = comment.ID
+
+	gameName := "Test Game 2"
+	if err := db.RecordActivity(ctx, pool, actorID, targetID, "new_comment", &journeyID, &gameName, &commentID); err != nil {
+		t.Fatalf("record activity: %v", err)
+	}
+
+	return journeyID, commentID, actorID
+}
+
+func TestDeleteComment_RemovesActivityEvent(t *testing.T) {
+	pool := connectTestDB(t)
+	ctx := context.Background()
+	_, commentID, actorID := setupCommentActivity(t, pool)
+
+	events, err := db.GetUserActivity(ctx, pool, actorID, 10, "")
+	if err != nil {
+		t.Fatalf("get user activity: %v", err)
+	}
+	if len(events) != 1 {
+		t.Fatalf("expected 1 event before delete, got %d", len(events))
+	}
+
+	if err := db.DeleteComment(ctx, pool, commentID, actorID); err != nil {
+		t.Fatalf("delete comment: %v", err)
+	}
+
+	events, err = db.GetUserActivity(ctx, pool, actorID, 10, "")
+	if err != nil {
+		t.Fatalf("get user activity: %v", err)
+	}
+	if len(events) != 0 {
+		t.Fatalf("expected activity event to be removed after comment deletion, got %d", len(events))
+	}
+}
+
+func TestDeleteJourney_RemovesActivityEvents(t *testing.T) {
+	pool := connectTestDB(t)
+	ctx := context.Background()
+	journeyID, _, actorID := setupCommentActivity(t, pool)
+
+	events, err := db.GetUserActivity(ctx, pool, actorID, 10, "")
+	if err != nil {
+		t.Fatalf("get user activity: %v", err)
+	}
+	if len(events) != 1 {
+		t.Fatalf("expected 1 event before delete, got %d", len(events))
+	}
+
+	// Journey owner deletes the journey directly, bypassing comment deletion.
+	if _, err := pool.Exec(ctx, "DELETE FROM journeys WHERE id = $1", journeyID); err != nil {
+		t.Fatalf("delete journey: %v", err)
+	}
+
+	events, err = db.GetUserActivity(ctx, pool, actorID, 10, "")
+	if err != nil {
+		t.Fatalf("get user activity: %v", err)
+	}
+	if len(events) != 0 {
+		t.Fatalf("expected activity event to be removed after journey deletion, got %d", len(events))
 	}
 }
 

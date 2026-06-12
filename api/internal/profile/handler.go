@@ -173,7 +173,7 @@ func (h *Handler) followPlayer(w http.ResponseWriter, r *http.Request) {
 	if err := db.UpsertFollowerEcho(r.Context(), h.pool, targetID, callerID); err != nil {
 		log.Printf("profile/follow: upsert echo: %v", err)
 	}
-	if err := db.RecordActivity(r.Context(), h.pool, callerID, targetID, "new_follower", nil, nil); err != nil {
+	if err := db.RecordActivity(r.Context(), h.pool, callerID, targetID, "new_follower", nil, nil, nil); err != nil {
 		log.Printf("profile/follow: record activity: %v", err)
 	}
 
