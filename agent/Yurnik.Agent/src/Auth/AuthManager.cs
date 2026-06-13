@@ -19,6 +19,16 @@ namespace Yurnik.Agent.Auth;
 /// </summary>
 sealed class AuthManager : IAuthState, IDisposable
 {
+    // Backoff applied when a refresh check fails transiently (network error or
+    // 429). A rejected token (401) is handled immediately, not via this table.
+    static readonly TimeSpan[] RefreshBackoff =
+    [
+        TimeSpan.FromMinutes(2),
+        TimeSpan.FromMinutes(10),
+        TimeSpan.FromMinutes(30),
+        TimeSpan.FromHours(2),
+    ];
+
     readonly AgentConfig _config;
     readonly CredentialStore _store;
     readonly IYurnikClient _client;
@@ -26,6 +36,9 @@ sealed class AuthManager : IAuthState, IDisposable
     // yurnik:// callbacks arrive as a second process instance passing args.
     // We listen on a named pipe so the second instance can hand off the URL.
     readonly UrlSchemeListener _listener;
+
+    readonly CancellationTokenSource _cts = new();
+    Task? _refreshTask;
 
     public bool IsAuthenticated { get; private set; }
 
@@ -76,6 +89,17 @@ sealed class AuthManager : IAuthState, IDisposable
     }
 
     /// <summary>
+    /// Starts the periodic session-refresh loop. Safe to call once at startup;
+    /// the loop is a no-op while unauthenticated.
+    /// </summary>
+    public void Start()
+    {
+        _refreshTask = RefreshLoopAsync(_cts.Token);
+        Log.Info("Session refresh loop started");
+        Log.Debug($"Session refresh interval: {_config.AuthRefreshInterval}");
+    }
+
+    /// <summary>
     /// Opens the browser to the agent login page and waits for the yurnik:// callback.
     /// </summary>
     public void StartLoginFlow()
@@ -100,7 +124,74 @@ sealed class AuthManager : IAuthState, IDisposable
         SetAuthenticated(false);
     }
 
-    public void Dispose() => _listener.Dispose();
+    public void Dispose()
+    {
+        _cts.Cancel();
+        try { _refreshTask?.Wait(5000); }
+        catch (AggregateException) { }
+        _listener.Dispose();
+    }
+
+    /// <summary>
+    /// Periodically re-validates the stored token so a continuously running
+    /// agent never hits the 7-day session expiry. Backs off on transient
+    /// failures; a rejected token (401) moves straight to ReauthRequired.
+    /// </summary>
+    async Task RefreshLoopAsync(CancellationToken ct)
+    {
+        var delay = _config.AuthRefreshInterval;
+        var failures = 0;
+
+        while (!ct.IsCancellationRequested)
+        {
+            try { await Task.Delay(delay, ct); }
+            catch (OperationCanceledException) { break; }
+
+            if (!IsAuthenticated)
+            {
+                Log.Debug("Session refresh: not authenticated, skipping check");
+                delay = _config.AuthRefreshInterval;
+                continue;
+            }
+
+            Log.Debug("Session refresh: checking heartbeat");
+            var heartbeat = await _client.HeartbeatAsync();
+            switch (heartbeat.Status)
+            {
+                case ApiResult.Ok:
+                    if (heartbeat.NewToken is not null)
+                    {
+                        Log.Info("Token renewed");
+                        _store.SaveToken(heartbeat.NewToken);
+                        _client.SetToken(heartbeat.NewToken);
+                    }
+                    else
+                    {
+                        Log.Debug("Session refresh: token still valid, no renewal needed");
+                    }
+                    failures = 0;
+                    delay = _config.AuthRefreshInterval;
+                    break;
+
+                case ApiResult.Unauthorized:
+                    Log.Warn("Session refresh: token rejected — clearing and requesting re-auth");
+                    _store.DeleteToken();
+                    _client.ClearToken();
+                    failures = 0;
+                    delay = _config.AuthRefreshInterval;
+                    SetAuthenticated(false);
+                    break;
+
+                default: // TransientFailure, RateLimited
+                    delay = RefreshBackoff[Math.Min(failures, RefreshBackoff.Length - 1)];
+                    failures++;
+                    Log.Warn($"Session refresh check failed ({heartbeat.Status}) — retrying in {delay}");
+                    break;
+            }
+
+            Log.Debug($"Session refresh: next check in {delay}");
+        }
+    }
 
     void OnYurnikUrl(string url)
     {

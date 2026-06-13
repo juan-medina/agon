@@ -22,6 +22,11 @@ sealed class AgentConfig
     // the two are merged into a single session.
     public TimeSpan MergeThreshold { get; init; } = TimeSpan.FromMinutes(10);
 
+    // How often the agent checks /api/v1/agent/heartbeat to keep the session
+    // token from expiring. The server renews tokens older than 24h, and the
+    // session itself lasts 7 days, so a multi-day interval leaves ample margin.
+    public TimeSpan AuthRefreshInterval { get; init; } = TimeSpan.FromDays(3);
+
     public static AgentConfig Load()
     {
         var dir = AppContext.BaseDirectory;
@@ -33,6 +38,8 @@ sealed class AgentConfig
             ApiBaseUrl = dev?.ApiBaseUrl ?? base_?.ApiBaseUrl ?? "https://api.yurnik.social",
             WebBaseUrl = dev?.WebBaseUrl ?? base_?.WebBaseUrl ?? "https://yurnik.social",
             Language   = dev?.Language   ?? base_?.Language,
+            AuthRefreshInterval = TimeSpan.FromSeconds(
+                dev?.AuthRefreshIntervalSeconds ?? base_?.AuthRefreshIntervalSeconds ?? (3 * 24 * 60 * 60)),
         };
     }
 
@@ -44,7 +51,7 @@ sealed class AgentConfig
             new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
     }
 
-    record SettingsFile(string? ApiBaseUrl, string? WebBaseUrl, string? Language);
+    record SettingsFile(string? ApiBaseUrl, string? WebBaseUrl, string? Language, int? AuthRefreshIntervalSeconds);
 
     static string DefaultDbPath()
     {

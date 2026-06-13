@@ -65,7 +65,7 @@ Configured via `RATE_LIMIT_RPS` at startup. Requests over the limit receive `429
 
 ### Agent — exponential backoff
 
-The agent must never send requests in a tight loop. Heartbeats run every 10 minutes. Any retry on API failure must use exponential backoff with a cap. Unbounded retry loops are bugs.
+The agent must never send requests in a tight loop. The session-refresh heartbeat runs every few days. Any retry on API failure must use exponential backoff with a cap. Unbounded retry loops are bugs.
 
 ## Secrets
 

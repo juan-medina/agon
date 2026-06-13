@@ -48,6 +48,7 @@ static class Program
         var credentialStore = new CredentialStore();
         var agentClient = new YurnikClient(config.ApiBaseUrl);
         var authManager = new AuthManager(config, credentialStore, agentClient);
+        authManager.Start();
         var eventQueue = new EventQueue(db);
         var queueProcessor = new QueueProcessor(eventQueue, agentClient, authManager);
         var processWatcher = new ProcessWatcher(eventQueue);

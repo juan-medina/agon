@@ -62,7 +62,7 @@ Login is Discord OAuth only (authorization code grant + PKCE), handled entirely 
 3. The API exchanges the code, looks up or creates the user, and issues a signed session JWT.
 4. The web app exchanges that for the session token via `/auth/session` and sends it as `Authorization: Bearer <token>` on every request after that.
 
-There's no server-side session table — the JWT itself, signed with the API's session key (`make gen-keys`), is the session. The agent gets its own copy of this token via the `yurnik://auth?token=…` URL scheme after the user logs in on the web app.
+There's no server-side session table — the JWT itself, signed with the API's session key (`make gen-keys`), is the session. The agent gets its own copy of this token via the `yurnik://auth?token=…` URL scheme after the user logs in on the web app. Sessions last 7 days; the agent periodically calls `/api/v1/agent/heartbeat` to renew its token before it expires, so a long-running agent stays signed in without user action.
 
 See [docs/DESIGN.md](docs/DESIGN.md) for the full picture (data model, journeys, social graph, etc.) and [docs/API.md](docs/API.md) for the endpoint reference.
 

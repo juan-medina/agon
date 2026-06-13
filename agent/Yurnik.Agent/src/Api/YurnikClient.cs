@@ -14,10 +14,15 @@ enum ApiResult { Ok, Unauthorized, TransientFailure, RateLimited }
 record CreatePendingResult(ApiResult Status, string? JourneyId);
 
 /// <summary>
-/// Returned by HeartbeatAsync. Valid=false means 401 or network error.
+/// Returned by HeartbeatAsync. Status distinguishes a rejected token (Unauthorized)
+/// from a transient problem (TransientFailure, RateLimited) that should be retried
+/// without clearing credentials.
 /// NewToken is set when the server issued a fresh token (token was older than 24h).
 /// </summary>
-record HeartbeatResult(bool Valid, string? NewToken = null);
+record HeartbeatResult(ApiResult Status, string? NewToken = null)
+{
+    public bool Valid => Status == ApiResult.Ok;
+}
 
 /// <summary>
 /// Typed HTTP client for the Yurnik API.
@@ -64,12 +69,12 @@ sealed class YurnikClient(string baseUrl) : IYurnikClient
             var resp = await _http.PostAsync("api/v1/agent/heartbeat", null);
 
             if (resp.StatusCode == HttpStatusCode.Unauthorized)
-                return new HeartbeatResult(false);
+                return new HeartbeatResult(ApiResult.Unauthorized);
 
             if (resp.StatusCode == HttpStatusCode.TooManyRequests)
             {
                 Log.Warn("Heartbeat rate limited");
-                return new HeartbeatResult(false);
+                return new HeartbeatResult(ApiResult.RateLimited);
             }
 
             if (resp.StatusCode == HttpStatusCode.OK)
@@ -77,16 +82,16 @@ sealed class YurnikClient(string baseUrl) : IYurnikClient
                 var json = await resp.Content.ReadAsStringAsync();
                 var doc = JsonDocument.Parse(json);
                 var newToken = doc.RootElement.GetProperty("token").GetString();
-                return new HeartbeatResult(true, newToken);
+                return new HeartbeatResult(ApiResult.Ok, newToken);
             }
 
             // 204 — valid, no renewal needed
-            return new HeartbeatResult(true);
+            return new HeartbeatResult(ApiResult.Ok);
         }
         catch (Exception ex)
         {
             Log.Error("Heartbeat failed", ex);
-            return new HeartbeatResult(false);
+            return new HeartbeatResult(ApiResult.TransientFailure);
         }
     }
 

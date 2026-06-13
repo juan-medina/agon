@@ -38,7 +38,7 @@ Two things form the core product:
 
 Clients are optional. The web app is fully functional without any client installed.
 
-**Windows tray agent** — a C# application distributed as a Windows installer via Velopack. Watches for games via graphics API detection, creates and heartbeats pending journeys via the API, fires an OS notification with a URL when a game closes. The agent has no UI of its own. Any configuration or journey review opens the web app in the default browser.
+**Windows tray agent** — a C# application distributed as a Windows installer via Velopack. Watches for games via graphics API detection, creates pending journeys via the API, fires an OS notification with a URL when a game closes. The agent has no UI of its own. Any configuration or journey review opens the web app in the default browser.
 
 ## Web frontend — React, TypeScript, Vite, pnpm
 
@@ -71,6 +71,8 @@ The `identify` scope is sufficient — it provides the user's stable numeric ID,
 The users table stores `(provider, provider_id)` as the stable external identity alongside an internal UUID. This means adding a second provider (Google, GitHub) requires only a new OAuth handler — no schema changes. Discord's numeric user ID is the `provider_id`; the internal UUID is what the rest of the system uses. The two are only joined at login.
 
 The agent receives its session token via the `yurnik://auth?token=…` custom URL scheme after the user logs in on the web app.
+
+Session JWTs last 7 days and are renewed by the server if presented while older than 24 hours. While running, the agent periodically calls `/api/v1/agent/heartbeat` to pick up a renewed token, so a long-running agent stays authenticated without prompting the user to log in again.
 
 ## API server
 

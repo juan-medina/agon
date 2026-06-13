@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: 2026 Juan Medina
 // SPDX-License-Identifier: MIT
 
+using System.Diagnostics;
+
 namespace Yurnik.Agent.Infrastructure;
 
 static class Log
@@ -29,6 +31,11 @@ static class Log
     public static void Warn(string message) => Write("WARN ", message);
     public static void Error(string message) => Write("ERROR", message);
     public static void Error(string message, Exception ex) => Write("ERROR", $"{message}: {ex}");
+
+    // Stripped entirely from Release builds — calls (and their argument
+    // expressions) are removed at compile time, so this is zero-cost there.
+    [Conditional("DEBUG")]
+    public static void Debug(string message) => Write("DEBUG", message);
 
     static void Write(string level, string message)
     {

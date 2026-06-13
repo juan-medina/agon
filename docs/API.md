@@ -428,16 +428,6 @@ Called by the agent when a game is detected.
 }
 ```
 
-#### Heartbeat a pending journey
-
-```
-POST /pending-journeys/:id/heartbeat
-```
-
-Called by the agent every 10 minutes while the game is running. Prevents eviction.
-
-**Response** — `204 No Content`
-
 #### End a pending journey
 
 ```
